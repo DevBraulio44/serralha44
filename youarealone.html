@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>You Are Alone</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    background-color: black;
+  }
+
+  #backgroundGif {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+  }
+
+  .eyesGif {
+    position: absolute;
+    width: 80px;
+    height: auto;
+    cursor: pointer;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+  <img id="backgroundGif" src="youarealone.gif" alt="Background GIF">
+
+  <script>
+    const numberOfEyes = 10; // quantos gifs vão aparecer
+    const targetURL = "SUA-PAGINA-AQUI.html"; // substitua depois
+    const eyes = [];
+
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+
+    function randomPosition() {
+      return {
+        x: Math.random() * (width - 80),
+        y: Math.random() * (height - 80),
+        dx: (Math.random() * 4 + 2) * (Math.random() < 0.5 ? 1 : -1),
+        dy: (Math.random() * 4 + 2) * (Math.random() < 0.5 ? 1 : -1)
+      };
+    }
+
+    for (let i = 0; i < numberOfEyes; i++) {
+      const img = document.createElement("img");
+      img.src = "eyesof.gif";
+      img.classList.add("eyesGif");
+
+      const pos = randomPosition();
+      img.style.left = pos.x + "px";
+      img.style.top = pos.y + "px";
+
+      img.dataset.dx = pos.dx;
+      img.dataset.dy = pos.dy;
+
+      img.addEventListener("click", () => {
+        window.location.href = targetURL;
+      });
+
+      document.body.appendChild(img);
+      eyes.push(img);
+    }
+
+    function animate() {
+      eyes.forEach(img => {
+        let x = parseFloat(img.style.left);
+        let y = parseFloat(img.style.top);
+        let dx = parseFloat(img.dataset.dx);
+        let dy = parseFloat(img.dataset.dy);
+
+        x += dx;
+        y += dy;
+
+        // colide com paredes
+        if (x <= 0 || x + 80 >= width) dx *= -1;
+        if (y <= 0 || y + 80 >= height) dy *= -1;
+
+        img.style.left = x + "px";
+        img.style.top = y + "px";
+        img.dataset.dx = dx;
+        img.dataset.dy = dy;
+      });
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  </script>
+</body>
+</html>
