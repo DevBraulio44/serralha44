@@ -1,115 +1,55 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>My Diary!! 💖</title>
-  <style>
-    body {
-      background-image: url("backgroundxp.png");
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      color: black;
-      font-family: "Comic Sans MS", cursive, sans-serif;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-      overflow-x: hidden;
-      animation: bgScroll 10s linear infinite;
-    }
+<meta charset="UTF-8">
+<title>My Diary!! 💖</title>
+<style>
+  body {
+    background-image: url("backgroundxp.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: black;
+    font-family: "Comic Sans MS", cursive, sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+    overflow-x: hidden;
+  }
 
-    @keyframes bgScroll {
-      from { background-position: 0 0; }
-      to { background-position: 100% 100%; }
-    }
+  h1 { color: hotpink; text-shadow: 2px 2px yellow; }
+  .container {
+    background-color: rgba(255,255,255,0.8);
+    border: 3px dashed pink;
+    padding: 20px;
+    margin: 50px auto;
+    width: 80%;
+    box-shadow: 0px 0px 20px magenta;
+    border-radius: 20px;
+  }
 
-    h1 {
-      color: hotpink;
-      text-shadow: 2px 2px yellow;
-    }
+  .crazy { font-family: "Papyrus","Comic Sans MS", cursive; font-size:30px; color:#ff00ff; text-shadow:0 0 8px yellow; animation:bounce 0.3s infinite alternate; }
+  @keyframes bounce { from{transform:translateY(0);} to{transform:translateY(-6px);} }
 
-    .container {
-      background-color: rgba(255, 255, 255, 0.8);
-      border: 3px dashed pink;
-      padding: 20px;
-      margin: 50px auto;
-      width: 80%;
-      box-shadow: 0px 0px 20px magenta;
-      border-radius: 20px;
-    }
+  img.sun { width:150px; display:block; margin:0 auto 10px auto; animation:spin 4s infinite linear; }
+  @keyframes spin { from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
 
-    .crazy {
-      font-family: "Papyrus", "Comic Sans MS", cursive;
-      font-size: 30px;
-      color: #ff00ff;
-      text-shadow: 0px 0px 8px yellow;
-      animation: bounce 0.3s infinite alternate;
-    }
-
-    @keyframes bounce {
-      from { transform: translateY(0); }
-      to { transform: translateY(-6px); }
-    }
-
-    img.sun {
-      width: 150px;
-      display: block;
-      margin: 0 auto 10px auto;
-      animation: spin 4s infinite linear;
-    }
-
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    marquee {
-      font-size: 18px;
-      color: blue;
-      margin-top: 20px;
-    }
-
-    .more {
-      margin-top: 20px;
-      font-size: 18px;
-    }
-
-    .more a {
-      color: blue;
-      text-decoration: underline;
-      font-weight: bold;
-    }
-  </style>
+  .more { margin-top:20px; font-size:18px; }
+  .more a { color: blue; text-decoration: underline; font-weight:bold; }
+</style>
 </head>
 <body>
-  <img class="sun" src="happy sun.png" alt="Happy Sun :D">
+<img class="sun" src="happy sun.png" alt="Happy Sun :D">
 
-  <div class="container">
-    <h1>Dear Diary!</h1>
-    <p>
-      Today was a g reat day! i feel like time is passing slower but who cares???  
-      i am gonna have more time to play more game lolllll.  
-      I was thinking of inviting my friends for a  
-      <span class="crazy">PARTYYYYY!!111!</span>  
-      WILL THEY COME????? i dont know haha but it’s gonna be awesome!!
-    </p>
+<div class="container">
+  <h1>Dear Diary!</h1>
+  <p>Today was a g reat day! i feel like time is passing slower but who cares??? i am gonna have more time to play more game lolllll. I was thinking of inviting my friends for a <span class="crazy">PARTYYYYY!!111!</span> WILL THEY COME????? i dont know haha but it's gonna be awesome!!</p>
 
-    <p>
-      Ohhh and I was thinking of testing a game so cool today my friend told me!  
-      its called like "<b>Between worlds</b>" WHAT THE H ELL IS THAT NAME BRUUUUU,  
-      Its a Rpg maker game and i think rpg games are so cool...
-    </p>
+  <p>Ohhh and i was thinking of testing a game so cool today my friend told me! its called like "Between worlds" WHAT THE H ELL IS THAT NAME BRUUUUU, Its a Rpg maker game and i think rpg games are so cool, IF YOU WANT THAT GAME JUST FIND YOURSELF MAH, i am sure that is a great game. Actually that must be some sort of puzzle game and not just rpg dont you think??? i dont know!! how will it be i am so curious about it 0_0. well and my friend told me to watch the video after, but what video?? he didnt mention it, i think its like the trailer or something, or maybe rule 34 LMAO, jk i dont really know what it is but we can find it out right lads?, it cant be that bad for a rpg game that i dont even know if anybody played it yet, but i think i will like it a lot and maybe get some secret stuff!!!</p>
 
-    <p>
-      ...(rest of diary text)...
-    </p>
-
-    <!-- Nova linha pedida -->
-    <div class="more">
-      If you want to see more of this cool stuff checkout out my <a href="tellmeit.html">Home</a>!!!
-    </div>
+  <div class="more">
+    If you want to see more of this cool stuff checkout out my <a href="tellmeit.html">Home</a>!!!
   </div>
-
-  <marquee>✨✨✨ Welcome to my awesome diary page ✨✨✨</marquee>
+</div>
 </body>
 </html>
