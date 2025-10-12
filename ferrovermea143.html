@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FerroVermea143</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    background-color: black;
+    overflow: hidden;
+    position: relative;
+  }
+
+  #xrayTrigger {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 80px;
+    height: auto;
+    cursor: pointer;
+    z-index: 10;
+  }
+
+  .xrayClone {
+    position: absolute;
+    width: 60px;
+    height: auto;
+    cursor: pointer;
+  }
+
+  #doorgate {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 300px;
+    height: auto;
+    transform: translate(-50%, -50%);
+    opacity: 0;
+    transition: opacity 2s ease;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+  <img id="xrayTrigger" src="xray.png" alt="Xray Trigger">
+  <img id="doorgate" src="doorgate.png" alt="Doorgate">
+
+  <audio id="hitSound" src="hit.ogg"></audio>
+
+  <script>
+    const xrayTrigger = document.getElementById('xrayTrigger');
+    const doorgate = document.getElementById('doorgate');
+    const hitSound = document.getElementById('hitSound');
+    const body = document.body;
+
+    let clones = [];
+    let maxClones = 10; // quantidade de xray.png que precisa eliminar
+    let eliminated = 0;
+    let spawning = false;
+    let spawnInterval;
+
+    function spawnXray() {
+      if (eliminated >= maxClones) return;
+
+      const clone = document.createElement('img');
+      clone.src = 'xray.png';
+      clone.classList.add('xrayClone');
+
+      // posição aleatória
+      const x = Math.random() * (window.innerWidth - 60);
+      const y = Math.random() * (window.innerHeight - 60);
+      clone.style.left = x + 'px';
+      clone.style.top = y + 'px';
+
+      clone.addEventListener('click', () => {
+        hitSound.currentTime = 0;
+        hitSound.play();
+        clone.remove();
+        eliminated++;
+        if (eliminated >= maxClones) {
+          clearInterval(spawnInterval);
+          clones.forEach(c => c.remove());
+          doorgate.style.opacity = 1;
+        }
+      });
+
+      body.appendChild(clone);
+      clones.push(clone);
+    }
+
+    xrayTrigger.addEventListener('mouseenter', () => {
+      if (!spawning) {
+        spawning = true;
+        spawnInterval = setInterval(spawnXray, 400); // cria um clone a cada 400ms
+      }
+    });
+
+    xrayTrigger.addEventListener('mouseleave', () => {
+      // opcional: para de spawnar quando sai do mouse
+      // clearInterval(spawnInterval);
+      // spawning = false;
+    });
+  </script>
+</body>
+</html>
