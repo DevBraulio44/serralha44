@@ -26,17 +26,19 @@
     position:relative; 
     overflow:hidden; 
     box-shadow: 0 6px 24px rgba(0,0,0,0.6), inset 0 -6px 12px rgba(0,0,0,0.4); 
-.slot span {
-    position: absolute;
-    width: 100%;
-    height: 100%;          /* ocupa toda altura do slot */
-    display: flex;
-    justify-content: center;
-    align-items: center;    /* centraliza vertical e horizontal */
-    transition: all 0.3s ease;
-    top: 0;
-    left: 0;
-}
+  }
+  .slot span { 
+    position:absolute; 
+    width:100%; 
+    height:100%;
+    display:flex;
+    justify-content:center; 
+    align-items:center; 
+    transition: transform 0.3s ease, filter 0.3s ease; 
+    top:0; 
+    left:0; 
+    transform: translateY(0); /* centraliza e permite animação */
+  }
   .overlay { position:fixed; inset:0; background:#000; opacity:0; transition:opacity 1s ease; pointer-events:none; z-index:30; }
   #doorgate { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:360px; opacity:0; pointer-events:none; transition:opacity 1.2s ease; z-index:40; }
 </style>
@@ -77,9 +79,9 @@ for(let i=0;i<SLOTS;i++){
   el.dataset.index=i;
   el.dataset.locked = "false"; // trava durante animação
   slotsContainer.appendChild(el);
-  slotElems.push({el, span, value:'-'});
+  slotElems.push({el, span, value:'-'} );
 
-  el.addEventListener('click', ()=>{
+  el.addEventListener('click', ()=> {
     if(el.dataset.locked === "true") return; // impede cliques rápidos
     el.dataset.locked = "true";
 
@@ -98,18 +100,17 @@ for(let i=0;i<SLOTS;i++){
     const oldSpan = slotElems[i].span;
     const newSpan = document.createElement('span');
     newSpan.textContent = nextLetter;
-    newSpan.style.top = '-100%';
+    newSpan.style.transform = 'translateY(-100%)'; // começa acima do slot
     newSpan.style.filter = 'blur(4px)';
     el.appendChild(newSpan);
 
     // oldSpan desce com blur
-    oldSpan.style.transition = 'all 0.3s ease';
-    oldSpan.style.top = '100%';
+    oldSpan.style.transform = 'translateY(100%)';
     oldSpan.style.filter = 'blur(4px)';
 
     // newSpan sobe
     setTimeout(()=> {
-      newSpan.style.top = '0';
+      newSpan.style.transform = 'translateY(0)';
       newSpan.style.filter = 'blur(0px)';
     }, 10);
 
