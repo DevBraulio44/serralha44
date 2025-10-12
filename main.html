@@ -65,8 +65,8 @@
 
     // Dados das imagens
     const images = [
-      { src: 'wallpaper.png', x: 100, y: 100, dx: 3, dy: 3, clickable: true },
-      { src: 'wallpaper2.png', x: 300, y: 200, dx: -4, dy: 3 },
+      { src: 'wallpaper.png', x: 100, y: 100, dx: 3, dy: 3, clickable: true, target: 'dancer.html' },
+      { src: 'wallpaper2.png', x: 300, y: 200, dx: -4, dy: 3, clickable: true, target: 'youarealone.html' },
       { src: 'wallpaper3.png', x: 600, y: 150, dx: 2, dy: -3 },
     ];
 
@@ -77,11 +77,13 @@
       img.style.left = data.x + 'px';
       img.style.top = data.y + 'px';
       if (data.clickable) img.classList.add('clickable');
-      if (data.clickable) {
+
+      if (data.clickable && data.target) {
         img.addEventListener('click', () => {
-          window.location.href = "dancer.html";
+          window.location.href = data.target;
         });
       }
+
       document.body.appendChild(img);
       return { el: img, ...data };
     });
