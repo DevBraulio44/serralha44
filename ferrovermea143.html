@@ -30,6 +30,7 @@
     width: 60px;
     height: auto;
     cursor: pointer;
+    transition: transform 0.1s;
   }
 
   #doorgate {
@@ -58,30 +59,43 @@
     const body = document.body;
 
     let clones = [];
-    let maxClones = 10; // quantidade de xray.png que precisa eliminar
-    let eliminated = 0;
+    let maxHits = 55; // quantidade de clones para “vencer”
+    let hits = 0;
     let spawning = false;
     let spawnInterval;
 
+    function randomPosition() {
+      const x = Math.random() * (window.innerWidth - 60);
+      const y = Math.random() * (window.innerHeight - 60);
+      return { x, y };
+    }
+
     function spawnXray() {
-      if (eliminated >= maxClones) return;
+      if (hits >= maxHits) return;
 
       const clone = document.createElement('img');
       clone.src = 'xray.png';
       clone.classList.add('xrayClone');
 
-      // posição aleatória
-      const x = Math.random() * (window.innerWidth - 60);
-      const y = Math.random() * (window.innerHeight - 60);
+      let {x, y} = randomPosition();
       clone.style.left = x + 'px';
       clone.style.top = y + 'px';
+
+      // animação de pulo simples
+      let dy = Math.random() * 4 + 2;
+      let direction = 1;
+      setInterval(() => {
+        y += dy * direction;
+        if (y <= 0 || y + 60 >= window.innerHeight) direction *= -1;
+        clone.style.top = y + 'px';
+      }, 30);
 
       clone.addEventListener('click', () => {
         hitSound.currentTime = 0;
         hitSound.play();
         clone.remove();
-        eliminated++;
-        if (eliminated >= maxClones) {
+        hits++;
+        if (hits >= maxHits) {
           clearInterval(spawnInterval);
           clones.forEach(c => c.remove());
           doorgate.style.opacity = 1;
@@ -92,17 +106,11 @@
       clones.push(clone);
     }
 
-    xrayTrigger.addEventListener('mouseenter', () => {
+    xrayTrigger.addEventListener('click', () => {
       if (!spawning) {
         spawning = true;
-        spawnInterval = setInterval(spawnXray, 400); // cria um clone a cada 400ms
+        spawnInterval = setInterval(spawnXray, 200); // cria clones mais rápido
       }
-    });
-
-    xrayTrigger.addEventListener('mouseleave', () => {
-      // opcional: para de spawnar quando sai do mouse
-      // clearInterval(spawnInterval);
-      // spawning = false;
     });
   </script>
 </body>
