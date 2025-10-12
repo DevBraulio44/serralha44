@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Serralha44</title>
+<title>Serralha44 - Main</title>
 <style>
   html, body {
     margin: 0;
@@ -47,29 +47,41 @@
     width: 180px;
     height: auto;
     user-select: none;
-    pointer-events: none;
+  }
+
+  .clickable {
+    cursor: pointer;
   }
 </style>
 </head>
 <body>
   <h1>WELCOME TO SERRALHA44</h1>
   <audio id="bgAudio" src="Fabio sabio.ogg" loop></audio>
+
   <script>
-    // Inicia o áudio após pequeno delay
+    // Tocar som
     const audio = document.getElementById('bgAudio');
     setTimeout(() => audio.play().catch(() => {}), 500);
 
+    // Dados das imagens
     const images = [
-      { src: 'wallpaper.png', x: 100, y: 100, dx: 3, dy: 3 },
+      { src: 'wallpaper.png', x: 100, y: 100, dx: 3, dy: 3, clickable: true },
       { src: 'wallpaper2.png', x: 300, y: 200, dx: -4, dy: 3 },
       { src: 'wallpaper3.png', x: 600, y: 150, dx: 2, dy: -3 },
     ];
 
+    // Criar elementos
     const elements = images.map(data => {
       const img = document.createElement('img');
       img.src = data.src;
       img.style.left = data.x + 'px';
       img.style.top = data.y + 'px';
+      if (data.clickable) img.classList.add('clickable');
+      if (data.clickable) {
+        img.addEventListener('click', () => {
+          window.location.href = "dancer.html";
+        });
+      }
       document.body.appendChild(img);
       return { el: img, ...data };
     });
@@ -77,12 +89,13 @@
     const width = window.innerWidth;
     const height = window.innerHeight;
 
+    // Animação de movimento e colisão
     function update() {
       elements.forEach((obj, i) => {
         obj.x += obj.dx;
         obj.y += obj.dy;
 
-        // Borda da tela
+        // Bordas da tela
         if (obj.x <= 0 || obj.x + 180 >= width) obj.dx *= -1;
         if (obj.y <= 0 || obj.y + 180 >= height) obj.dy *= -1;
 
