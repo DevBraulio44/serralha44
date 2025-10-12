@@ -16,6 +16,7 @@
     overflow: hidden;
     background-color: black;
     animation: flash 0.2s infinite;
+    cursor: pointer; /* indica interatividade no clique */
   }
 
   @keyframes flash {
@@ -42,16 +43,29 @@
 </style>
 </head>
 <body>
-  <img src="dance.gif" alt="Dancer">
+  <img id="danceGif" src="dance.gif" alt="Dancer">
 
   <audio id="music" src="happydance.ogg" loop></audio>
 
   <script>
     const audio = document.getElementById('music');
+    const gif = document.getElementById('danceGif');
+
+    // toca música depois de 500ms (para garantir interação e permitir autoplay)
     setTimeout(() => {
       audio.volume = 0.9;
       audio.play().catch(() => {});
     }, 500);
+
+    // clicar no GIF leva para ferrovermea143.html
+    gif.addEventListener('click', () => {
+      // opcional: fade-out antes de mudar
+      document.body.style.transition = "opacity 1s";
+      document.body.style.opacity = 0;
+      setTimeout(() => {
+        window.location.href = "ferrovermea143.html";
+      }, 1000);
+    });
   </script>
 </body>
 </html>
