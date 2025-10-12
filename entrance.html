@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Serralha44 - Entrance</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    background-color: black;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Courier New', monospace;
+    color: red;
+  }
+
+  h1 {
+    font-size: 40px;
+    text-shadow: 0 0 20px red, 0 0 40px darkred;
+    margin-bottom: 60px;
+    animation: flicker 2s infinite alternate;
+  }
+
+  @keyframes flicker {
+    0%, 18%, 22%, 25%, 53%, 57%, 100% {
+      opacity: 1;
+      text-shadow: 0 0 20px red, 0 0 40px darkred;
+    }
+    20%, 24%, 55% {
+      opacity: 0.6;
+      text-shadow: none;
+    }
+  }
+
+  button {
+    background-color: darkred;
+    color: white;
+    border: none;
+    padding: 18px 50px;
+    border-radius: 10px;
+    font-size: 22px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    box-shadow: 0 0 15px crimson;
+    transition: transform 0.2s ease, box-shadow 0.3s;
+  }
+
+  button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 30px red, 0 0 60px darkred;
+  }
+
+  .fade {
+    animation: fadeIn 2s ease forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+</style>
+</head>
+<body>
+  <h1 class="fade">WELCOME TO SERRALHA44</h1>
+  <button onclick="enterSite()">ENTER THE GATES</button>
+
+  <script>
+    function enterSite() {
+      document.body.style.transition = "opacity 2s ease";
+      document.body.style.opacity = 0;
+      setTimeout(() => {
+        window.location.href = "index.html";
+      }, 2000);
+    }
+  </script>
+</body>
+</html>
