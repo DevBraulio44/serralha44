@@ -51,5 +51,15 @@
     If you want to see more of this cool stuff checkout out my <a href="tellmeit.html">Home</a>!!!
   </div>
 </div>
+
+<!-- Música de fundo -->
+<audio id="bgmAudio" src="bgm.mid" loop autoplay></audio>
+
+<script>
+  const audio = document.getElementById("bgmAudio");
+  audio.volume = 0.7;
+  // autoplay pode ser bloqueado, então tentamos tocar após 500ms
+  setTimeout(() => audio.play().catch(()=>{}), 500);
+</script>
 </body>
 </html>
