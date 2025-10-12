@@ -10,8 +10,33 @@
   .wrapper { text-align:center; max-width:900px; width:100%; }
   h1 { margin-bottom:18px; color:#ff7; text-shadow:0 0 12px rgba(255,200,0,0.6);}
   .slots { display:flex; justify-content:center; gap:var(--slot-gap); margin-bottom:18px; }
-  .slot { width:var(--slot-size); height: calc(var(--slot-size) * 1.2); background:#222; border:3px solid #666; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:34px; font-weight:bold; cursor:pointer; user-select:none; position:relative; overflow:hidden; box-shadow: 0 6px 24px rgba(0,0,0,0.6), inset 0 -6px 12px rgba(0,0,0,0.4); text-align:center; }
-  .slot span { position:absolute; width:100%; text-align:center; transition: all 0.3s ease; display:block; top:0; left:0; }
+  .slot { 
+    width:var(--slot-size); 
+    height: calc(var(--slot-size) * 1.2); 
+    background:#222; 
+    border:3px solid #666; 
+    border-radius:8px; 
+    display:flex; 
+    align-items:center; 
+    justify-content:center; 
+    font-size:34px; 
+    font-weight:bold; 
+    cursor:pointer; 
+    user-select:none; 
+    position:relative; 
+    overflow:hidden; 
+    box-shadow: 0 6px 24px rgba(0,0,0,0.6), inset 0 -6px 12px rgba(0,0,0,0.4); 
+  }
+  .slot span { 
+    position:absolute; 
+    width:100%; 
+    display:flex;
+    justify-content:center; 
+    align-items:center; 
+    transition: all 0.3s ease; 
+    top:0; 
+    left:0; 
+  }
   .overlay { position:fixed; inset:0; background:#000; opacity:0; transition:opacity 1s ease; pointer-events:none; z-index:30; }
   #doorgate { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:360px; opacity:0; pointer-events:none; transition:opacity 1.2s ease; z-index:40; }
 </style>
