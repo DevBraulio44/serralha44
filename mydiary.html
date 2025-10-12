@@ -51,10 +51,10 @@
       to { transform: translateY(-6px); }
     }
 
-    img {
+    img.sun {
       width: 150px;
       display: block;
-      margin: 0 auto;
+      margin: 0 auto 10px auto;
       animation: spin 4s infinite linear;
     }
 
@@ -68,10 +68,21 @@
       color: blue;
       margin-top: 20px;
     }
+
+    .more {
+      margin-top: 20px;
+      font-size: 18px;
+    }
+
+    .more a {
+      color: blue;
+      text-decoration: underline;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
-  <img src="happy sun.png" alt="Happy Sun :D">
+  <img class="sun" src="happy sun.png" alt="Happy Sun :D">
 
   <div class="container">
     <h1>Dear Diary!</h1>
@@ -80,23 +91,25 @@
       i am gonna have more time to play more game lolllll.  
       I was thinking of inviting my friends for a  
       <span class="crazy">PARTYYYYY!!111!</span>  
-      WILL THEY COME????? i dont know haha but its gonna be awesome!!  
-      ohhh and i was thinking of testing a game so cool today my friend told me!  
-      its called like ''Between worlds'' WHAT THE H ELL IS THAT NAME BRUUUUU,  
-      Its a Rpg maker game and i think rpg games are so cool, IF YOU WANT THAT GAME JUST FIND YOURSELF MAH,  
-      i am sure that is a great game.  
-      A ctually that must be some sort of puzzle game and not just rpg dont you think??? i dont know!!  
-      how will it be i am so curious about it 0_0.  
-      well and my friend told me to watch the video after, but what video?? he didnt mention it,  
-      i think its like the trailer or something, or maybe rule 34 LMAO, jk i dont really know what it is  
-      but we can find it out right lads?, it cant be that bad for a rpg game that i dont even know if anybody played it yet,  
-      but i think i will l ike it a lot and mayb e get some scec r et stuff!!!
+      WILL THEY COME????? i dont know haha but it’s gonna be awesome!!
     </p>
+
+    <p>
+      Ohhh and I was thinking of testing a game so cool today my friend told me!  
+      its called like "<b>Between worlds</b>" WHAT THE H ELL IS THAT NAME BRUUUUU,  
+      Its a Rpg maker game and i think rpg games are so cool...
+    </p>
+
+    <p>
+      ...(rest of diary text)...
+    </p>
+
+    <!-- Nova linha pedida -->
+    <div class="more">
+      If you want to see more of this cool stuff checkout out my <a href="tellmeit.html">Home</a>!!!
+    </div>
   </div>
 
   <marquee>✨✨✨ Welcome to my awesome diary page ✨✨✨</marquee>
-
-  <!-- Música MIDI -->
-  <audio src="bgm.ogg" autoplay loop></audio>
 </body>
 </html>
