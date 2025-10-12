@@ -184,7 +184,7 @@ const centerY = window.innerHeight * 0.6;
 function spawnMonster() {
   if (isPlayerDead || monsters.length >= MAX_MONSTERS) return;
   const m = document.createElement('img');
-  m.src = 'monster.png';
+  m.src = 'main/monster.png';
   m.className = 'monster';
   const edge = Math.floor(Math.random() * 4);
   let x, y;
