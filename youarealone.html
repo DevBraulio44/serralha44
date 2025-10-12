@@ -13,13 +13,13 @@
     overflow: hidden;
     position: relative;
     background-color: black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
 
   #backgroundGif {
-    position: absolute;
-    top: 20%;          /* deixa menor que a tela inteira */
-    left: 20%;
-    width: 60%;        /* ocupa 60% da tela */
+    width: 60%;       /* ocupa 60% da tela */
     height: auto;
     object-fit: cover;
     z-index: 0;
@@ -27,7 +27,7 @@
 
   .eyesGif {
     position: absolute;
-    width: 120px;       /* olhos maiores */
+    width: 120px;     /* olhos maiores */
     height: auto;
     cursor: pointer;
     z-index: 10;
