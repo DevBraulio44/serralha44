@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Tell Me It</title>
+<title>Tell Me It - Slot</title>
 <style>
   :root { --slot-size:80px; --slot-gap:12px; }
   html,body { height:100%; margin:0; background:#000; display:flex; align-items:center; justify-content:center; font-family:"Comic Sans MS", cursive, sans-serif; color:white; }
   .wrapper { text-align:center; max-width:900px; width:100%; }
   h1 { margin-bottom:18px; color:#ff7; text-shadow:0 0 12px rgba(255,200,0,0.6);}
   .slots { display:flex; justify-content:center; gap:var(--slot-gap); margin-bottom:18px; }
-  .slot { width:var(--slot-size); height: calc(var(--slot-size) * 1.2); background:#222; border:3px solid #666; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:34px; font-weight:bold; cursor:pointer; user-select:none; position:relative; box-shadow: 0 6px 24px rgba(0,0,0,0.6), inset 0 -6px 12px rgba(0,0,0,0.4); transition: transform 0.12s ease; }
-  .slot:active { transform: translateY(2px) scale(0.99); }
+  .slot { width:var(--slot-size); height: calc(var(--slot-size) * 1.2); background:#222; border:3px solid #666; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:34px; font-weight:bold; cursor:pointer; user-select:none; position:relative; overflow:hidden; box-shadow: 0 6px 24px rgba(0,0,0,0.6), inset 0 -6px 12px rgba(0,0,0,0.4); }
+  .slot span { position:absolute; transition: all 0.3s ease; display:block; width:100%; text-align:center; }
   .overlay { position:fixed; inset:0; background:#000; opacity:0; transition:opacity 1s ease; pointer-events:none; z-index:30; }
   #doorgate { position:fixed; left:50%; top:50%; transform:translate(-50%,-50%); width:360px; opacity:0; pointer-events:none; transition:opacity 1.2s ease; z-index:40; }
 </style>
@@ -29,51 +29,82 @@
 <audio id="successSound" src="success.ogg"></audio>
 
 <script>
-  const CODE = "GHALER";
-  const SLOTS = 6;
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  const slotsContainer = document.getElementById('slotsContainer');
-  const overlay = document.getElementById('overlay');
-  const doorgate = document.getElementById('doorgate');
-  const slotSound = document.getElementById('slotSound');
-  const successSound = document.getElementById('successSound');
+const CODE = "GHALER";
+const SLOTS = 6;
+const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const slotsContainer = document.getElementById('slotsContainer');
+const overlay = document.getElementById('overlay');
+const doorgate = document.getElementById('doorgate');
+const slotSound = document.getElementById('slotSound');
+const successSound = document.getElementById('successSound');
 
-  const slotElems = [];
-  const slotValues = Array(SLOTS).fill('');
+const slotElems = [];
+const slotValues = Array(SLOTS).fill('-');
 
-  for (let i=0;i<SLOTS;i++){
-    const el = document.createElement('div');
-    el.className='slot';
-    el.dataset.index=i;
-    el.textContent='-';
-    slotsContainer.appendChild(el);
-    slotElems.push(el);
+for(let i=0;i<SLOTS;i++){
+  const el = document.createElement('div');
+  el.className='slot';
+  
+  const span = document.createElement('span');
+  span.textContent = '-';
+  el.appendChild(span);
 
-    el.addEventListener('click', ()=>{
-      // tocar som
-      slotSound.currentTime=0;
-      slotSound.play().catch(()=>{});
+  el.dataset.index=i;
+  slotsContainer.appendChild(el);
+  slotElems.push({el, span, value:'-'});
 
-      // escolher letra aleatória
-      const l = letters[Math.floor(Math.random()*letters.length)];
-      el.textContent = l;
-      slotValues[i] = l;
+  el.addEventListener('click', ()=>{
+    // tocar som curto
+    slotSound.currentTime=0;
+    slotSound.play().catch(()=>{});
+    setTimeout(()=>{ slotSound.pause(); slotSound.currentTime=0; }, 150);
 
+    // calcular próxima letra em ordem alfabética
+    let current = slotElems[i].value;
+    let nextIndex = letters.indexOf(current) + 1;
+    if(nextIndex >= letters.length) nextIndex = 0;
+    let nextLetter = letters[nextIndex];
+
+    // animação estilo slot
+    const oldSpan = slotElems[i].span;
+    const newSpan = document.createElement('span');
+    newSpan.textContent = nextLetter;
+    newSpan.style.top = '-100%';
+    newSpan.style.filter = 'blur(4px)';
+    el.appendChild(newSpan);
+
+    // anima oldSpan descer com blur e sumir
+    oldSpan.style.transition = 'all 0.3s ease';
+    oldSpan.style.top = '100%';
+    oldSpan.style.filter = 'blur(4px)';
+
+    // newSpan sobe para posição
+    setTimeout(()=> {
+      newSpan.style.top = '0';
+      newSpan.style.filter = 'blur(0px)';
+    }, 10);
+
+    setTimeout(()=> {
+      el.removeChild(oldSpan);
+      slotElems[i].span = newSpan;
+      slotElems[i].value = nextLetter;
+      slotValues[i] = nextLetter;
       checkCode();
-    });
-  }
+    }, 310);
+  });
+}
 
-  function checkCode(){
-    if(slotValues.includes('')) return;
-    const guess = slotValues.join('');
-    if(guess===CODE){
-      overlay.style.pointerEvents='auto';
-      overlay.style.opacity=1;
-      successSound.currentTime=0;
-      successSound.play().catch(()=>{});
-      setTimeout(()=>{doorgate.style.opacity=1;},1000);
-    }
+function checkCode(){
+  if(slotValues.includes('-')) return;
+  const guess = slotValues.join('');
+  if(guess===CODE){
+    overlay.style.pointerEvents='auto';
+    overlay.style.opacity=1;
+    successSound.currentTime=0;
+    successSound.play().catch(()=>{});
+    setTimeout(()=>{doorgate.style.opacity=1;},1000);
   }
+}
 </script>
 </body>
 </html>
