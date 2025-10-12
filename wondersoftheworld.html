@@ -8,49 +8,65 @@
   html, body {
     margin: 0;
     padding: 0;
-    background: #000;
-    width: 100%;
     height: 100%;
+    width: 100%;
+    background-color: black;
     overflow: hidden;
-    font-family: Arial, sans-serif;
-    color: white;
-    position: relative;
   }
 
-  /* GIF centralizado */
-  .center-gif {
+  #earth {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    max-width: 50%;
-    max-height: 50%;
+    width: 250px;
+    height: auto;
+    image-rendering: pixelated;
+    user-select: none;
+    animation: pulse 3s infinite ease-in-out;
   }
 
-  /* Textos nos cantos */
-  .corner-text {
+  @keyframes pulse {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.6); }
+  }
+
+  .corner {
     position: absolute;
-    font-size: 2rem;
-    font-weight: bold;
-    color: #fff;
-    text-shadow: 0 0 8px #fff;
+    font-family: 'Courier New', monospace;
+    font-size: 32px;
+    color: white;
+    text-shadow: 0 0 10px white;
+    user-select: none;
+    transition: 0.2s;
   }
 
-  .top-left { top: 10px; left: 10px; }
-  .top-right { top: 10px; right: 10px; }
-  .bottom-left { bottom: 10px; left: 10px; }
-  .bottom-right { bottom: 10px; right: 10px; }
+  .corner:hover {
+    text-shadow: 0 0 20px cyan, 0 0 40px cyan;
+    transform: scale(1.05);
+  }
 
+  #wonders { top: 20px; left: 20px; cursor: pointer; }
+  #of { top: 20px; right: 20px; }
+  #the { bottom: 20px; left: 20px; }
+  #world { bottom: 20px; right: 20px; }
 </style>
 </head>
 <body>
 
-<img src="earth.gif" alt="Earth GIF" class="center-gif">
+  <img id="earth" src="earth.gif" alt="Earth">
 
-<div class="corner-text top-left">wonders</div>
-<div class="corner-text top-right">of</div>
-<div class="corner-text bottom-left">the</div>
-<div class="corner-text bottom-right">world</div>
+  <div id="wonders" class="corner">WONDERS</div>
+  <div id="of" class="corner">OF</div>
+  <div id="the" class="corner">THE</div>
+  <div id="world" class="corner">WORLD</div>
+
+  <script>
+    // Faz "WONDERS" abrir a próxima página
+    document.getElementById("wonders").addEventListener("click", () => {
+      window.location.href = "onemoretime.html";
+    });
+  </script>
 
 </body>
 </html>
