@@ -12,7 +12,7 @@
     height: 100%;
     width: 100%;
     background: url('colorstripes.gif') center center / cover no-repeat;
-    cursor: none;
+    cursor: default; /* Cursor normal agora */
   }
 
   .cat {
@@ -83,10 +83,10 @@
     const randomCat = cats[Math.floor(Math.random() * cats.length)];
     randomCat.el.classList.add('red');
 
+    // Se clicar na cat vermelha dentro do tempo, vai pra trouble.html
     const clickHandler = () => {
       window.location.href = 'trouble.html';
     };
-
     randomCat.el.addEventListener('click', clickHandler);
 
     setTimeout(() => {
@@ -96,7 +96,15 @@
   }
 
   // Ativar o efeito aleatoriamente a cada 5–10 segundos
-  setInterval(triggerRedCat, Math.random() * 5000 + 5000);
+  function randomInterval() {
+    const delay = Math.random() * 5000 + 5000;
+    setTimeout(() => {
+      triggerRedCat();
+      randomInterval();
+    }, delay);
+  }
+
+  randomInterval();
 </script>
 
 </body>
