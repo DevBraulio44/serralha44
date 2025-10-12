@@ -18,6 +18,7 @@
     align-items: center;
     font-family: 'Courier New', monospace;
     color: red;
+    transition: opacity 2s ease;
   }
 
   h1 {
@@ -56,24 +57,20 @@
     box-shadow: 0 0 30px red, 0 0 60px darkred;
   }
 
-  .fade {
-    animation: fadeIn 2s ease forwards;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+  .fade-out {
+    opacity: 0;
   }
 </style>
 </head>
 <body>
-  <h1 class="fade">WELCOME TO SERRALHA44</h1>
+  <h1>WELCOME TO SERRALHA44</h1>
   <button onclick="enterSite()">ENTER THE GATES</button>
 
   <script>
     function enterSite() {
-      document.body.style.transition = "opacity 2s ease";
-      document.body.style.opacity = 0;
+      // animação de fade
+      document.body.classList.add("fade-out");
+      // redireciona depois de 2 segundos
       setTimeout(() => {
         window.location.href = "main.html";
       }, 2000);
