@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One More Time</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+    background: url('colorstripes.gif') center center / cover no-repeat;
+    cursor: none;
+  }
+
+  .cat {
+    position: absolute;
+    width: 100px;
+    height: auto;
+    image-rendering: pixelated;
+    user-select: none;
+    transition: transform 0.2s;
+  }
+
+  .red {
+    filter: brightness(2) drop-shadow(0 0 15px red) saturate(5) hue-rotate(-30deg);
+  }
+</style>
+</head>
+<body>
+
+<script>
+  const numCats = 8;
+  const cats = [];
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
+
+  // Criar várias catheads
+  for (let i = 0; i < numCats; i++) {
+    const img = document.createElement('img');
+    img.src = 'cathead.png';
+    img.classList.add('cat');
+    img.style.left = Math.random() * (screenWidth - 100) + 'px';
+    img.style.top = Math.random() * (screenHeight - 100) + 'px';
+    document.body.appendChild(img);
+
+    cats.push({
+      el: img,
+      x: parseFloat(img.style.left),
+      y: parseFloat(img.style.top),
+      dx: (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2),
+      dy: (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2),
+    });
+  }
+
+  function update() {
+    cats.forEach(cat => {
+      cat.x += cat.dx;
+      cat.y += cat.dy;
+
+      // Bater nas bordas
+      if (cat.x <= 0 || cat.x >= screenWidth - 100) {
+        cat.dx *= -1;
+        cat.el.style.transform = cat.dx > 0 ? 'scaleX(1)' : 'scaleX(-1)';
+      }
+      if (cat.y <= 0 || cat.y >= screenHeight - 100) {
+        cat.dy *= -1;
+      }
+
+      cat.el.style.left = cat.x + 'px';
+      cat.el.style.top = cat.y + 'px';
+    });
+
+    requestAnimationFrame(update);
+  }
+
+  update();
+
+  // Escolher aleatoriamente uma cat que vai "ficar vermelha"
+  function triggerRedCat() {
+    const randomCat = cats[Math.floor(Math.random() * cats.length)];
+    randomCat.el.classList.add('red');
+
+    const clickHandler = () => {
+      window.location.href = 'trouble.html';
+    };
+
+    randomCat.el.addEventListener('click', clickHandler);
+
+    setTimeout(() => {
+      randomCat.el.classList.remove('red');
+      randomCat.el.removeEventListener('click', clickHandler);
+    }, 1000);
+  }
+
+  // Ativar o efeito aleatoriamente a cada 5–10 segundos
+  setInterval(triggerRedCat, Math.random() * 5000 + 5000);
+</script>
+
+</body>
+</html>
