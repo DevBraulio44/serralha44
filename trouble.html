@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Trouble - Walk</title>
+<style>
+  :root { --w: 100vw; --h: 100vh; --centerX: calc(var(--w)/2); --centerY: calc(var(--h)/2); }
+  html,body { height:100%; margin:0; background:black; overflow:hidden; font-family: Arial, sans-serif; color:white; }
+  #scene {
+    position:fixed;
+    inset:0;
+    background-size: cover;
+    background-position: center;
+    transition: filter 0.45s ease, transform 0.45s ease;
+  }
+
+  .hotspot {
+    position: absolute;
+    z-index: 30;
+    background: transparent;
+  }
+  #hs-forward { width: 28%; height: 32%; left:36%; bottom:6%; }
+  #hs-back { width: 28%; height: 32%; left:36%; top:6%; }
+  #hs-left { width: 22%; height: 40%; left:2%; top:30%; }
+  #hs-right { width: 22%; height: 40%; right:2%; top:30%; }
+
+  #hint {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 18px;
+    z-index: 40;
+    background: rgba(0,0,0,0.45);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 14px;
+    backdrop-filter: blur(4px);
+  }
+
+  .monster {
+    position: absolute;
+    width: 90px;
+    height: auto;
+    pointer-events: none;
+    z-index: 35;
+    transition: transform 0.12s linear, opacity 0.5s ease;
+  }
+
+  #hand {
+    position: absolute;
+    width: 160px;
+    height: auto;
+    left: 50%;
+    top: 60%;
+    transform: translate(-50%, -50%) scale(0.8);
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s ease, transform 0.18s ease;
+  }
+
+  #jumpscare {
+    position: fixed;
+    inset:0;
+    background: black;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:200;
+    opacity:0;
+    pointer-events:none;
+    transition: opacity 0.12s linear;
+  }
+  #jumpscare img { width:100%; height:100%; object-fit:cover; }
+
+  .fall-away {
+    transition: transform 0.8s ease, opacity 0.8s ease;
+    transform: translateY(40px) scale(0.9);
+    opacity: 0;
+  }
+</style>
+</head>
+<body>
+
+<div id="scene" aria-hidden="true"></div>
+
+<!-- clickable areas -->
+<div id="hs-forward" class="hotspot" data-action="forward" title="Forward"></div>
+<div id="hs-back" class="hotspot" data-action="back" title="Back"></div>
+<div id="hs-left" class="hotspot" data-action="left" title="Left"></div>
+<div id="hs-right" class="hotspot" data-action="right" title="Right"></div>
+
+<div id="hint">Use mouse clicks to move. Press <strong>F</strong> to punch.</div>
+
+<img id="hand" src="fps.png" alt="hand">
+<div id="jumpscare"><img src="Jumpscare.webp" alt="jumpscare"></div>
+
+<audio id="punchSnd" src="hit.ogg"></audio>
+<audio id="jumpsnd" src="Fabio sabio.ogg"></audio>
+
+<script>
+const SCENES = {
+  Entrance: 'Entrance.webp',
+  FirstHall: 'FirstHall.webp',
+  Hallway1: 'Hallway1.webp',
+  HallwayEnd: 'HallwayEnd.webp',
+  InsideHallWayRoom: 'InsideHallWayRoom.webp',
+  Insidehallway: 'Insidehallway2.webp'
+};
+
+const sceneOrder = [];
+const sceneElement = document.getElementById('scene');
+const hotspots = document.querySelectorAll('.hotspot');
+let currentScene = 'Entrance';
+
+function setScene(name, opts = {}) {
+  currentScene = name;
+  sceneOrder.push(name);
+  sceneElement.style.backgroundImage = `url('${SCENES[name]}')`;
+
+  if (opts.animateFrom) {
+    sceneElement.style.transition = 'none';
+    sceneElement.style.filter = 'blur(8px)';
+    sceneElement.style.transform = 'scale(1.02)';
+    requestAnimationFrame(() => {
+      setTimeout(()=> {
+        sceneElement.style.transition = 'filter 0.45s ease, transform 0.45s ease';
+        sceneElement.style.filter = 'blur(0px)';
+        sceneElement.style.transform = 'scale(1)';
+      }, 20);
+    });
+  } else {
+    sceneElement.style.filter = 'none';
+    sceneElement.style.transform = 'none';
+  }
+}
+
+setScene('Entrance');
+
+function goBack() {
+  if (sceneOrder.length <= 1) return;
+  sceneOrder.pop();
+  const prev = sceneOrder[sceneOrder.length - 1];
+  currentScene = prev;
+  sceneElement.style.backgroundImage = `url('${SCENES[prev]}')`;
+}
+
+function handleAction(action) {
+  if (isPlayerDead) return;
+  if (currentScene === 'Entrance') {
+    if (action === 'forward') setScene('FirstHall', {animateFrom: 'forward'});
+  } else if (currentScene === 'FirstHall') {
+    if (action === 'left') setScene('Hallway1', {animateFrom: 'left'});
+    else if (action === 'back') goBack();
+  } else if (currentScene === 'Hallway1') {
+    if (action === 'forward') setScene('HallwayEnd', {animateFrom: 'forward'});
+    else if (action === 'back') goBack();
+  } else if (currentScene === 'HallwayEnd') {
+    if (action === 'forward') setScene('InsideHallWayRoom', {animateFrom: 'forward'});
+    else if (action === 'back') goBack();
+  } else if (currentScene === 'InsideHallWayRoom') {
+    if (action === 'right') setScene('Insidehallway', {animateFrom: 'right'});
+    else if (action === 'back') goBack();
+  } else if (currentScene === 'Insidehallway') {
+    // ❌ não redireciona mais pra outro HTML
+    if (action === 'back') goBack();
+  }
+}
+
+hotspots.forEach(h => {
+  h.addEventListener('click', () => handleAction(h.dataset.action));
+});
+
+const monsters = [];
+let spawnTimer = null;
+let isPlayerDead = false;
+const MAX_MONSTERS = 18;
+const spawnIntervalMin = 600;
+const spawnIntervalMax = 1200;
+const centerX = window.innerWidth / 2;
+const centerY = window.innerHeight * 0.6;
+
+function spawnMonster() {
+  if (isPlayerDead || monsters.length >= MAX_MONSTERS) return;
+  const m = document.createElement('img');
+  m.src = 'enemy.png';
+  m.className = 'monster';
+  const edge = Math.floor(Math.random() * 4);
+  let x, y;
+  if (edge === 0) { x = -80; y = Math.random() * (window.innerHeight - 120) + 40; }
+  else if (edge === 1) { x = window.innerWidth + 80; y = Math.random() * (window.innerHeight - 120) + 40; }
+  else if (edge === 2) { x = Math.random() * (window.innerWidth - 120) + 40; y = -80; }
+  else { x = Math.random() * (window.innerWidth - 120) + 40; y = window.innerHeight + 80; }
+  m.style.left = x + 'px';
+  m.style.top = y + 'px';
+  m.dataset.x = x; m.dataset.y = y;
+  m.dataset.speed = (1 + Math.random() * 1.8).toString();
+  document.body.appendChild(m);
+  monsters.push(m);
+}
+
+function updateMonsters() {
+  if (isPlayerDead) return;
+  for (let i = monsters.length - 1; i >= 0; i--) {
+    const m = monsters[i];
+    let x = parseFloat(m.dataset.x);
+    let y = parseFloat(m.dataset.y);
+    const speed = parseFloat(m.dataset.speed);
+    const dx = centerX - x, dy = centerY - y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    if (dist < 18) return monsterHitPlayer();
+    const nx = (dx / dist) * speed, ny = (dy / dist) * speed;
+    x += nx; y += ny;
+    m.dataset.x = x; m.dataset.y = y;
+    m.style.left = x + 'px'; m.style.top = y + 'px';
+    m.style.transform = nx > 0 ? 'scaleX(1)' : 'scaleX(-1)';
+  }
+  requestAnimationFrame(updateMonsters);
+}
+
+const handEl = document.getElementById('hand');
+const punchSound = document.getElementById('punchSnd');
+let punching = false;
+
+function doPunch() {
+  if (isPlayerDead || punching) return;
+  punching = true;
+  handEl.style.opacity = '1';
+  handEl.style.transform = 'translate(-50%, -65%) scale(1)';
+  let nearest = null, nearestDist = 9999;
+  monsters.forEach(m => {
+    const mx = parseFloat(m.dataset.x) + 45;
+    const my = parseFloat(m.dataset.y) + 45;
+    const d = Math.hypot(mx - centerX, my - centerY);
+    if (d < nearestDist) { nearestDist = d; nearest = m; }
+  });
+  punchSound.currentTime = 0; punchSound.play().catch(()=>{});
+  if (nearest && nearestDist < 240) {
+    handEl.style.transition = 'transform 0.12s linear';
+    const tx = parseFloat(nearest.dataset.x) - centerX + 30;
+    const ty = parseFloat(nearest.dataset.y) - centerY + 30;
+    handEl.style.transform = `translate(calc(-50% + ${tx}px), calc(-65% + ${ty}px)) scale(1.05)`;
+    setTimeout(() => {
+      nearest.classList.add('fall-away');
+      setTimeout(() => {
+        nearest.remove();
+        monsters.splice(monsters.indexOf(nearest), 1);
+      }, 800);
+      handEl.style.transform = 'translate(-50%, -65%) scale(0.9)';
+      setTimeout(()=> { handEl.style.opacity = '0'; punching = false; }, 200);
+    }, 140);
+  } else {
+    setTimeout(() => {
+      handEl.style.transform = 'translate(-50%, -65%) scale(0.9)';
+      setTimeout(()=> { handEl.style.opacity = '0'; punching = false; }, 120);
+    }, 160);
+  }
+}
+
+const jumpscareEl = document.getElementById('jumpscare');
+const jumpscareSound = document.getElementById('jumpsnd');
+
+function monsterHitPlayer() {
+  if (isPlayerDead) return;
+  isPlayerDead = true;
+  jumpscareEl.style.pointerEvents = 'auto';
+  jumpscareEl.style.opacity = '1';
+  jumpscareSound.currentTime = 0;
+  jumpscareSound.play().catch(()=>{});
+  sceneElement.style.transition = 'transform 0.08s';
+  sceneElement.style.transform = 'scale(1.06)';
+}
+
+function spawnLoop() {
+  if (isPlayerDead) return;
+  spawnMonster();
+  const delay = Math.random() * (spawnIntervalMax - spawnIntervalMin) + spawnIntervalMin;
+  spawnTimer = setTimeout(spawnLoop, delay);
+}
+
+spawnLoop();
+requestAnimationFrame(updateMonsters);
+
+window.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'f') doPunch();
+  if (e.key.toLowerCase() === 'r') location.reload();
+});
+
+const hint = document.getElementById('hint');
+setTimeout(()=> { hint.style.opacity = '0.9'; }, 200);
+</script>
+</body>
+</html>
