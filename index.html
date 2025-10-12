@@ -1,80 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Serralha44</title>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-      height: 100%;
-      width: 100%;
-      animation: bgColor 6s infinite linear;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Serralha44</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+    animation: bgColor 5s infinite linear;
+    background-color: black;
+  }
 
-    @keyframes bgColor {
-      0%   { background-color: black; }
-      10%  { background-color: darkred; }
-      20%  { background-color: purple; }
-      30%  { background-color: darkblue; }
-      40%  { background-color: darkviolet; }
-      50%  { background-color: crimson; }
-      60%  { background-color: darkorange; }
-      70%  { background-color: gold; }
-      80%  { background-color: darkgreen; }
-      90%  { background-color: teal; }
-      100% { background-color: black; }
-    }
+  @keyframes bgColor {
+    0%   { background-color: black; }
+    10%  { background-color: darkred; }
+    20%  { background-color: purple; }
+    30%  { background-color: darkblue; }
+    40%  { background-color: darkviolet; }
+    50%  { background-color: crimson; }
+    60%  { background-color: darkorange; }
+    70%  { background-color: gold; }
+    80%  { background-color: darkgreen; }
+    90%  { background-color: teal; }
+    100% { background-color: black; }
+  }
 
-    img {
-      position: absolute;
-      width: 300px; /* tamanho do wallpaper */
-      height: auto;
-      user-select: none;
-      pointer-events: none;
-    }
+  h1 {
+    position: absolute;
+    top: 20px;
+    width: 100%;
+    text-align: center;
+    font-family: 'Courier New', monospace;
+    font-size: 32px;
+    color: red;
+    text-shadow: 0 0 20px red, 0 0 40px darkred;
+    z-index: 10;
+    user-select: none;
+  }
 
-    p {
-      color: red;
-      font-family: 'Courier New', monospace;
-      font-size: 24px;
-      text-align: center;
-      position: absolute;
-      width: 100%;
-      bottom: 20px;
-    }
-  </style>
+  img {
+    position: absolute;
+    width: 180px;
+    height: auto;
+    user-select: none;
+    pointer-events: none;
+  }
+</style>
 </head>
 <body>
-  <img src="wallpaper.png" id="dvd" alt="Serralha44">
-  <p>WELCOME TO SERRALHA44</p>
-
+  <h1>WELCOME TO SERRALHA44</h1>
+  <audio id="bgAudio" src="Fabio sabio.ogg" loop></audio>
   <script>
-    const img = document.getElementById("dvd");
-    let x = 100, y = 100;
-    let vx = 3, vy = 3;
+    // Inicia o áudio após pequeno delay
+    const audio = document.getElementById('bgAudio');
+    setTimeout(() => audio.play().catch(() => {}), 500);
 
-    function move() {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const iw = img.width;
-      const ih = img.height;
+    const images = [
+      { src: 'wallpaper.png', x: 100, y: 100, dx: 3, dy: 3 },
+      { src: 'wallpaper2.png', x: 300, y: 200, dx: -4, dy: 3 },
+      { src: 'wallpaper3.png', x: 600, y: 150, dx: 2, dy: -3 },
+    ];
 
-      x += vx;
-      y += vy;
+    const elements = images.map(data => {
+      const img = document.createElement('img');
+      img.src = data.src;
+      img.style.left = data.x + 'px';
+      img.style.top = data.y + 'px';
+      document.body.appendChild(img);
+      return { el: img, ...data };
+    });
 
-      if (x + iw >= w || x <= 0) vx = -vx;
-      if (y + ih >= h || y <= 0) vy = -vy;
+    const width = window.innerWidth;
+    const height = window.innerHeight;
 
-      img.style.left = x + "px";
-      img.style.top = y + "px";
+    function update() {
+      elements.forEach((obj, i) => {
+        obj.x += obj.dx;
+        obj.y += obj.dy;
 
-      requestAnimationFrame(move);
+        // Borda da tela
+        if (obj.x <= 0 || obj.x + 180 >= width) obj.dx *= -1;
+        if (obj.y <= 0 || obj.y + 180 >= height) obj.dy *= -1;
+
+        // Colisão entre imagens
+        for (let j = i + 1; j < elements.length; j++) {
+          const other = elements[j];
+          const distX = (obj.x + 90) - (other.x + 90);
+          const distY = (obj.y + 90) - (other.y + 90);
+          const distance = Math.sqrt(distX * distX + distY * distY);
+          if (distance < 180) {
+            obj.dx *= -1;
+            obj.dy *= -1;
+            other.dx *= -1;
+            other.dy *= -1;
+          }
+        }
+
+        obj.el.style.left = obj.x + 'px';
+        obj.el.style.top = obj.y + 'px';
+      });
+      requestAnimationFrame(update);
     }
 
-    move();
+    update();
   </script>
 </body>
 </html>
