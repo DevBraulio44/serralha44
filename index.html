@@ -5,11 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Serralha44</title>
   <style>
-    @keyframes colorFade {
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      width: 100%;
+      animation: bgColor 6s infinite linear;
+    }
+
+    @keyframes bgColor {
       0%   { background-color: black; }
       10%  { background-color: darkred; }
       20%  { background-color: purple; }
-      30%  { background-color: midnightblue; }
+      30%  { background-color: darkblue; }
       40%  { background-color: darkviolet; }
       50%  { background-color: crimson; }
       60%  { background-color: darkorange; }
@@ -19,18 +28,53 @@
       100% { background-color: black; }
     }
 
-    body {
-      animation: colorFade 4s infinite linear;
+    img {
+      position: absolute;
+      width: 300px; /* tamanho do wallpaper */
+      height: auto;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    p {
       color: red;
       font-family: 'Courier New', monospace;
-      font-size: 22px;
+      font-size: 24px;
       text-align: center;
-      margin-top: 20%;
-      transition: background-color 1s ease-in-out;
+      position: absolute;
+      width: 100%;
+      bottom: 20px;
     }
   </style>
 </head>
 <body>
+  <img src="wallpaper.png" id="dvd" alt="Serralha44">
   <p>WELCOME TO SERRALHA44</p>
+
+  <script>
+    const img = document.getElementById("dvd");
+    let x = 100, y = 100;
+    let vx = 3, vy = 3;
+
+    function move() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const iw = img.width;
+      const ih = img.height;
+
+      x += vx;
+      y += vy;
+
+      if (x + iw >= w || x <= 0) vx = -vx;
+      if (y + ih >= h || y <= 0) vy = -vy;
+
+      img.style.left = x + "px";
+      img.style.top = y + "px";
+
+      requestAnimationFrame(move);
+    }
+
+    move();
+  </script>
 </body>
 </html>
