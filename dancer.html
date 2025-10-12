@@ -10,19 +10,48 @@
     padding: 0;
     height: 100%;
     width: 100%;
-    background-color: black;
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+    background-color: black;
+    animation: flash 0.2s infinite;
+  }
+
+  @keyframes flash {
+    0%   { background-color: black; }
+    20%  { background-color: red; }
+    40%  { background-color: magenta; }
+    60%  { background-color: yellow; }
+    80%  { background-color: cyan; }
+    100% { background-color: black; }
   }
 
   img {
-    width: 300px;
+    width: 350px;
     height: auto;
+    filter: drop-shadow(0 0 30px red);
+    z-index: 10;
+    animation: pulse 1s infinite alternate;
+  }
+
+  @keyframes pulse {
+    from { transform: scale(1); filter: drop-shadow(0 0 30px red); }
+    to { transform: scale(1.1); filter: drop-shadow(0 0 60px white); }
   }
 </style>
 </head>
 <body>
   <img src="dance.gif" alt="Dancer">
+
+  <audio id="music" src="happydance.ogg" loop></audio>
+
+  <script>
+    const audio = document.getElementById('music');
+    setTimeout(() => {
+      audio.volume = 0.9;
+      audio.play().catch(() => {});
+    }, 500);
+  </script>
 </body>
 </html>
