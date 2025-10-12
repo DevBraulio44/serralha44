@@ -64,12 +64,11 @@
     setTimeout(() => audio.play().catch(() => {}), 500);
 
     // Dados das imagens
-    const images = [
-      { src: 'wallpaper.png', x: 100, y: 100, dx: 3, dy: 3, clickable: true, target: 'dancer.html' },
-      { src: 'wallpaper2.png', x: 300, y: 200, dx: -4, dy: 3, clickable: true, target: 'youarealone.html' },
-      { src: 'wallpaper3.png', x: 600, y: 150, dx: 2, dy: -3, },
-    ];
-
+const images = [
+  { src: 'wallpaper.png', x: 100, y: 100, dx: 3, dy: 3, clickable: true, target: 'dancer.html' },
+  { src: 'wallpaper2.png', x: 300, y: 200, dx: -4, dy: 3, clickable: true, target: 'youarealone.html' },
+  { src: 'wallpaper3.png', x: 600, y: 150, dx: 2, dy: -3, clickable: true, target: 'wondersoftheworld.html' },
+];
     // Criar elementos
     const elements = images.map(data => {
       const img = document.createElement('img');
@@ -125,6 +124,7 @@
   </script>
 </body>
 </html>
+
 
 
 
