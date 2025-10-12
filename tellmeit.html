@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tell Me It</title>
+<style>
+  :root {
+    --slot-size: 80px;
+    --slot-gap: 12px;
+  }
+  html,body {
+    height:100%;
+    margin:0;
+    background:#000;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family: "Comic Sans MS", cursive, sans-serif;
+    color:white;
+  }
+
+  .wrapper {
+    text-align:center;
+    max-width:900px;
+    width:100%;
+  }
+
+  h1 {
+    margin-bottom:18px;
+    color:#ff7;
+    text-shadow:0 0 12px rgba(255,200,0,0.6);
+  }
+
+  .slots {
+    display:flex;
+    justify-content:center;
+    gap: var(--slot-gap);
+    margin-bottom:18px;
+  }
+
+  .slot {
+    width:var(--slot-size);
+    height: calc(var(--slot-size) * 1.2);
+    background: linear-gradient(180deg,#222,#111);
+    border: 3px solid #666;
+    border-radius:8px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:34px;
+    font-weight:bold;
+    cursor:pointer;
+    user-select:none;
+    position:relative;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.6), inset 0 -6px 12px rgba(0,0,0,0.4);
+    transition: transform 0.12s ease;
+  }
+
+  .slot:active { transform: translateY(2px) scale(0.99); }
+
+  /* efeito de blur quando girando */
+  .slot.spin {
+    filter: blur(3px) brightness(1.1);
+    transition: filter 0.15s;
+  }
+
+  .hint {
+    font-size:14px;
+    color:#aaa;
+    margin-bottom:14px;
+  }
+
+  #doorgate {
+    position:fixed;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    width: 360px;
+    opacity:0;
+    pointer-events:none;
+    transition: opacity 1.2s ease;
+    z-index: 40;
+  }
+
+  /* overlay for fade out effect */
+  .overlay {
+    position:fixed;
+    inset:0;
+    background:#000;
+    opacity:0;
+    transition:opacity 1s ease;
+    pointer-events:none;
+    z-index:30;
+  }
+
+  .success-message {
+    margin-top:12px;
+    color: #9fff9f;
+    opacity:0;
+    transition: opacity .6s;
+  }
+
+  .reset {
+    margin-top:14px;
+    background:#222;
+    color:white;
+    border:1px solid #444;
+    padding:8px 14px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+  <div class="wrapper">
+    <h1>Do you remember our secret code?</h1>
+    <div class="hint">Click each slot to spin a letter. Get the 6-letter code.</div>
+
+    <div class="slots" id="slotsContainer">
+      <!-- slots serão criados por JS -->
+    </div>
+
+    <div class="controls">
+      <button class="reset" id="resetBtn">Reset</button>
+      <div class="success-message" id="successText">Code correct! Opening the gate...</div>
+    </div>
+  </div>
+
+  <img id="doorgate" src="doorgate.png" alt="Door Gate">
+
+  <div class="overlay" id="overlay"></div>
+
+<script>
+  // configuração
+  const CODE = "GHALER"; // código secreto
+  const SLOTS = 6;
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const slotsContainer = document.getElementById('slotsContainer');
+  const overlay = document.getElementById('overlay');
+  const doorgate = document.getElementById('doorgate');
+  const successText = document.getElementById('successText');
+  const resetBtn = document.getElementById('resetBtn');
+
+  // estado
+  const slotElems = [];
+  const slotValues = Array(SLOTS).fill(''); // letras atuais
+  const spinning = Array(SLOTS).fill(false);
+
+  // cria elementos
+  for (let i=0;i<SLOTS;i++){
+    const el = document.createElement('div');
+    el.className = 'slot';
+    el.dataset.index = i;
+    el.textContent = '-';
+    slotsContainer.appendChild(el);
+    slotElems.push(el);
+
+    el.addEventListener('click', () => {
+      // se já girando, ignora
+      if (spinning[i]) return;
+      spinSlot(i);
+    });
+  }
+
+  // função que anima o spin e para numa letra aleatória
+  function spinSlot(index){
+    spinning[index] = true;
+    const el = slotElems[index];
+    el.classList.add('spin');
+
+    // animação: trocar letras rápidas por um tempo aleatório
+    const totalTime = 700 + Math.random()*700; // 700ms a 1400ms
+    const start = performance.now();
+
+    let rafId = null;
+    function frame(t){
+      const elapsed = t - start;
+      // a cada quadro mostra letra aleatória
+      const r = Math.floor(Math.random()*letters.length);
+      el.textContent = letters[r];
+
+      // blur já aplicado via classe .spin
+      if (elapsed < totalTime){
+        rafId = requestAnimationFrame(frame);
+      } else {
+        // parar: escolher letra final (aqui aleatória)
+        cancelAnimationFrame(rafId);
+        const finalIndex = Math.floor(Math.random()*letters.length);
+        const finalLetter = letters[finalIndex];
+        el.textContent = finalLetter;
+        slotValues[index] = finalLetter;
+        el.classList.remove('spin');
+        spinning[index] = false;
+        checkCode();
+      }
+    }
+    rafId = requestAnimationFrame(frame);
+  }
+
+  // verifica se todos slots formam o código correto
+  function checkCode(){
+    // todos preenchidos?
+    if (slotValues.some(v => v === '')) return;
+
+    const guess = slotValues.join('');
+    if (guess === CODE){
+      // sucesso: fade out e mostra doorgate.png
+      successText.style.opacity = 1;
+      overlay.style.pointerEvents = 'auto';
+      overlay.style.opacity = 1;
+      // esperar o fade e então mostrar o doorgate com fade-in
+      setTimeout(() => {
+        doorgate.style.opacity = 1;
+      }, 1000);
+    } else {
+      // se erraram, mostrar pulsinho vermelho ou reset parcial
+      successText.style.opacity = 0;
+      // efeito pequeno de shake nos slots
+      slotsContainer.animate([
+        { transform: 'translateX(0)' },
+        { transform: 'translateX(-6px)' },
+        { transform: 'translateX(6px)' },
+        { transform: 'translateX(0)' }
+      ], { duration: 300, iterations: 1 });
+    }
+  }
+
+  // reset manual
+  resetBtn.addEventListener('click', () => {
+    slotValues.fill('');
+    slotElems.forEach(e => e.textContent = '-');
+    successText.style.opacity = 0;
+    doorgate.style.opacity = 0;
+    overlay.style.opacity = 0;
+    overlay.style.pointerEvents = 'none';
+  });
+
+  // opcional: permitir setar letra manualmente (clicando várias vezes para alterar)
+  // mas por enquanto é sempre spin por clique como pedido.
+</script>
+</body>
+</html>
