@@ -7,20 +7,26 @@
   <style>
     @keyframes colorFade {
       0%   { background-color: black; }
-      25%  { background-color: darkred; }
-      50%  { background-color: black; }
-      75%  { background-color: darkslateblue; }
+      10%  { background-color: darkred; }
+      20%  { background-color: purple; }
+      30%  { background-color: midnightblue; }
+      40%  { background-color: darkviolet; }
+      50%  { background-color: crimson; }
+      60%  { background-color: darkorange; }
+      70%  { background-color: gold; }
+      80%  { background-color: darkgreen; }
+      90%  { background-color: teal; }
       100% { background-color: black; }
     }
 
     body {
-      animation: colorFade 6s infinite ease-in-out;
+      animation: colorFade 4s infinite linear;
       color: red;
       font-family: 'Courier New', monospace;
       font-size: 22px;
       text-align: center;
       margin-top: 20%;
-      transition: background-color 2s ease-in-out;
+      transition: background-color 1s ease-in-out;
     }
   </style>
 </head>
