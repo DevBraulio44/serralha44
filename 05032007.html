@@ -1,244 +1,87 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Screamer</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Screamer Demo</title>
 <style>
-  :root{
-    --bg:#000;
-  }
-  html,body{
-    height:100%;
-    margin:0;
-    background:var(--bg);
-    font-family:system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    color:#fff;
-    display:flex;
-    align-items:center;
-    justify-content:center;
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: black;
+    overflow: hidden;
   }
 
-  .container{
-    text-align:center;
+  #overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: black;
+    z-index: 9999;
+    transition: background-color 0.05s linear;
   }
 
-  button {
-    background:#ff4757;
-    border:0;
-    color:#fff;
-    padding:12px 20px;
-    margin:8px;
-    border-radius:8px;
-    font-size:16px;
-    cursor:pointer;
-    box-shadow:0 6px 18px rgba(0,0,0,0.4);
-  }
-  button.secondary{
-    background:#333;
-  }
-
-  /* Tela do jumpscare (invisível até ativar) */
-  .jumpscare {
-    position:fixed;
-    inset:0;
-    display:none;
-    align-items:center;
-    justify-content:center;
-    background:#000;
-    z-index:9999;
-    overflow:hidden;
-  }
-
-  .jumpscare img{
-    max-width:120%;
-    max-height:120%;
-    pointer-events:none;
-    user-select:none;
-    display:block;
-    transform:scale(1);
-  }
-
-  /* animação de piscar (rápido) */
-  @keyframes flash {
-    0%   { opacity:0; transform: scale(0.9); filter:brightness(1); }
-    10%  { opacity:1; transform: scale(1.03); filter:brightness(2); }
-    35%  { opacity:1; transform: scale(1); filter:brightness(1); }
-    50%  { opacity:0; transform: scale(0.95); filter:brightness(0.5); }
-    100% { opacity:0; transform: scale(0.95); filter:brightness(0.5); }
-  }
-
-  /* usado dinamicamente para piscar */
-  .flashing img {
-    animation: flash 0.6s linear infinite;
-  }
-
-  /* mensagem de aviso */
-  .warning {
-    max-width:520px;
-    margin:0 auto 18px;
-    font-size:14px;
-    opacity:0.85;
+  #overlay img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.1s;
   }
 </style>
 </head>
 <body>
-  <div class="container" role="main" aria-labelledby="title">
-    <h1 id="title">Screamer — clique para ativar</h1>
-    <p class="warning">Aviso: efeito visceral. Som alto e imagem piscante. Não clique se estiver a conduzir ou sensível a sustos.</p>
-    <div>
-      <button id="trigger">Trigger Screamer</button>
-      <button id="exit" class="secondary" disabled>Exit</button>
-    </div>
+  <div id="overlay">
+    <img id="jumpscare" src="Jumpscare.png" alt="Jumpscare">
   </div>
-
-  <!-- overlay do jumpscare -->
-  <div id="jumpscare" class="jumpscare" role="dialog" aria-hidden="true">
-    <img id="jumpscareImg" src="Jumpscare.png" alt="Jumpscare" />
-  </div>
-
-  <!-- áudio (arquivo local) -->
-  <audio id="screamAudio" preload="auto">
-    <source src="Fabio sabio.ogg" type="audio/ogg">
-    <!-- fallback -->
-    Seu navegador não suporta áudio.
-  </audio>
+  <audio id="sound" src="Fabio sabio.ogg" preload="auto"></audio>
 
 <script>
-(function(){
-  const triggerBtn = document.getElementById('trigger');
-  const exitBtn = document.getElementById('exit');
-  const jumpscare = document.getElementById('jumpscare');
-  const img = document.getElementById('jumpscareImg');
-  const audio = document.getElementById('screamAudio');
+const overlay = document.getElementById("overlay");
+const img = document.getElementById("jumpscare");
+const sound = document.getElementById("sound");
 
-  let active = false;
-  let flashTimeout = null;
-  let endTimeout = null;
+let flashing = false;
+let flashInterval;
 
-  // configurações (ajuste se quiser)
-  const FLASH_DURATION_MS = 4000; // tempo total do piscar (ms)
-  const FORCE_FULLSCREEN = true;  // tenta colocar em fullscreen
-  const VOLUME = 1.0; // 0.0 - 1.0
-  const PLAY_ONCE = true; // toca só uma vez
-  const PREVENT_REPEAT_MS = 2000; // tempo mínimo entre ativações
+function startFlash() {
+  if (flashing) return;
+  flashing = true;
+  let white = false;
+  flashInterval = setInterval(() => {
+    overlay.style.backgroundColor = white ? "black" : "white";
+    white = !white;
+  }, 80); // pisca a cada 80ms — você pode diminuir pra mais rápido
+}
 
-  audio.volume = VOLUME;
-  audio.preload = 'auto';
+function stopFlash() {
+  clearInterval(flashInterval);
+  flashing = false;
+  overlay.style.backgroundColor = "black";
+}
 
-  async function tryFullscreen(el){
-    if (!FORCE_FULLSCREEN) return;
-    const doc = document.documentElement;
-    const rfs = doc.requestFullscreen || doc.webkitRequestFullscreen || doc.msRequestFullscreen;
-    try {
-      if (rfs) await rfs.call(el || document.documentElement);
-    } catch(e){
-      // ignora
-    }
+// dispara quando mover o mouse
+window.addEventListener("mousemove", () => {
+  if (!flashing) {
+    startFlash();
+
+    // mostrar imagem gradualmente
+    setTimeout(() => img.style.opacity = 1, 100);
+
+    // tocar áudio (volume moderado, você pode ajustar)
+    sound.volume = 0.7;
+    sound.currentTime = 0;
+    sound.play().catch(() => {});
+
+    // parar após 4 segundos
+    setTimeout(() => {
+      stopFlash();
+      img.style.opacity = 0;
+    }, 4000);
   }
-
-  function stopScreamer(){
-    if (!active) return;
-    active = false;
-    // parar áudio
-    try { audio.pause(); audio.currentTime = 0; } catch(e){}
-    // remover classe de flashing e esconder overlay
-    jumpscare.classList.remove('flashing');
-    jumpscare.style.display = 'none';
-    jumpscare.setAttribute('aria-hidden','true');
-    exitBtn.disabled = true;
-
-    // tentar sair do fullscreen se possível
-    if (document.fullscreenElement) {
-      const cfs = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
-      if (cfs) {
-        try { cfs.call(document); } catch(e){}
-      }
-    }
-
-    clearTimeout(flashTimeout);
-    clearTimeout(endTimeout);
-  }
-
-  function triggerScreamer(){
-    if (active) return;
-    active = true;
-    exitBtn.disabled = false;
-
-    // mostrar overlay e começar a piscar
-    jumpscare.style.display = 'flex';
-    jumpscare.setAttribute('aria-hidden','false');
-    // garantir repaint antes de adicionar animação
-    requestAnimationFrame(() => {
-      jumpscare.classList.add('flashing');
-    });
-
-    // tocar audio (requer gesto do usuário — estamos dentro do click handler)
-    try {
-      // algumas plataformas podem bloquear play se não for diretamente acionado por gesto;
-      // aqui já é acionado por clique.
-      audio.currentTime = 0;
-      audio.play().catch((e)=>{
-        // se falhar, mantém a imagem piscando; usuário pode habilitar áudio manualmente
-        console.warn('Erro ao tocar áudio:', e);
-      });
-      if (PLAY_ONCE) {
-        // se o audio for menor que a duração de flashing, ok; se for maior, pode cortar:
-        // vamos garantir que ele pare no final do efeito.
-      }
-    } catch(e){
-      console.warn(e);
-    }
-
-    // tenta ir para fullscreen
-    tryFullscreen(document.documentElement);
-
-    // vibrar (se suportado) para maior impacto — opcional
-    if (navigator.vibrate) {
-      navigator.vibrate([200,100,200]);
-    }
-
-    // desligar após X ms
-    flashTimeout = setTimeout(() => {
-      stopScreamer();
-    }, FLASH_DURATION_MS);
-
-    // proteção contra re-ativação imediata
-    triggerBtn.disabled = true;
-    setTimeout(()=> triggerBtn.disabled = false, PREVENT_REPEAT_MS);
-  }
-
-  // liga eventos
-  triggerBtn.addEventListener('click', (e)=>{
-    // clique do usuário — disparar
-    triggerScreamer();
-  });
-
-  exitBtn.addEventListener('click', (e)=>{
-    stopScreamer();
-  });
-
-  // esc para parar
-  window.addEventListener('keydown', (ev)=>{
-    if (ev.key === 'Escape' || ev.key === 'Esc') stopScreamer();
-  });
-
-  // se o usuário clicar na overlay, interrompe
-  jumpscare.addEventListener('click', stopScreamer);
-
-  // Se o áudio terminar, podemos garantir que saímos (caso PLAY_ONCE e a duração seja curta)
-  audio.addEventListener('ended', ()=>{
-    // opcionalmente parar imediatamente (se ainda estiver ativo)
-    stopScreamer();
-  });
-
-  // prevenção: se o usuário navegar com teclas, etc, não permitir scroll enquanto ativo
-  const preventScroll = (e) => {
-    if (active) e.preventDefault();
-  };
-  ['wheel','touchmove','keydown'].forEach(ev => window.addEventListener(ev, preventScroll, {passive:false}));
-
-})();
+});
 </script>
 </body>
 </html>
