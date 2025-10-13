@@ -8,77 +8,75 @@
   html, body {
     margin: 0;
     padding: 0;
+    background-color: black;
     height: 100%;
     width: 100%;
-    background-color: black;
     overflow: hidden;
+    font-family: 'Courier New', monospace;
+    color: white;
   }
 
-  /* Centralizar o gif */
-  .center {
+  #earth {
     position: absolute;
     top: 50%;
     left: 50%;
+    width: 300px;
+    height: auto;
     transform: translate(-50%, -50%);
     image-rendering: pixelated;
-    width: 250px;
-    height: auto;
   }
 
-  /* Estilo das palavras */
   .corner {
     position: absolute;
-    font-family: 'Courier New', monospace;
     font-size: 28px;
-    color: white;
     text-shadow: 0 0 10px white;
-    user-select: none;
-    cursor: default;
-  }
-
-  .top-left    { top: 20px; left: 20px; }
-  .top-right   { top: 20px; right: 20px; }
-  .bottom-left { bottom: 20px; left: 20px; }
-  .bottom-right{ bottom: 20px; right: 20px; }
-
-  /* "Wonders" clicável */
-  .clickable {
     cursor: pointer;
-    color: cyan;
-    text-shadow: 0 0 10px cyan;
-    transition: 0.3s;
+    transition: color 0.3s, text-shadow 0.3s;
   }
-  .clickable:hover {
-    color: lime;
-    text-shadow: 0 0 20px lime;
+
+  .corner:hover {
+    color: cyan;
+    text-shadow: 0 0 20px cyan;
+  }
+
+  .top-left { top: 20px; left: 20px; }
+  .top-right { top: 20px; right: 20px; }
+  .bottom-left { bottom: 20px; left: 20px; }
+  .bottom-right { bottom: 20px; right: 20px; }
+
+  audio {
+    display: none;
   }
 </style>
 </head>
 <body>
-  <!-- Gif central -->
-  <img src="earth.gif" alt="Earth" class="center">
 
-  <!-- Palavras nos cantos -->
-  <div class="corner top-left clickable" id="wonders">Wonders</div>
-  <div class="corner top-right">Of</div>
+  <img id="earth" src="earth.gif" alt="Earth">
+
+  <div class="corner top-left" id="wonders">Wonders</div>
+  <div class="corner top-right" id="of">Of</div>
   <div class="corner bottom-left">The</div>
   <div class="corner bottom-right">World</div>
 
-  <!-- Áudio -->
-  <audio id="bgMusic" src="Out (Flute version).ogg" loop></audio>
+  <audio id="bgAudio" src="Out (Flute version).ogg" autoplay loop></audio>
 
   <script>
-    // Iniciar música com leve atraso para evitar bloqueio
-    const audio = document.getElementById("bgMusic");
-    setTimeout(() => {
-      audio.volume = 0.7;
-      audio.play().catch(() => {});
-    }, 500);
+    const wonders = document.getElementById('wonders');
+    const of = document.getElementById('of');
+    const audio = document.getElementById('bgAudio');
 
-    // Redirecionamento ao clicar em "Wonders"
-    document.getElementById("wonders").addEventListener("click", () => {
-      window.location.href = "onemoretime.html";
+    // Garante que o áudio comece (alguns navegadores bloqueiam autoplay)
+    setTimeout(() => audio.play().catch(() => {}), 500);
+
+    // Redirecionamentos
+    wonders.addEventListener('click', () => {
+      window.location.href = 'onemoretime.html';
+    });
+
+    of.addEventListener('click', () => {
+      window.location.href = 'Doyourememberme.html';
     });
   </script>
+
 </body>
 </html>
