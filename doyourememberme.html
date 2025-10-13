@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Do You Remember Me?</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: black;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-family: 'Courier New', monospace;
+  }
+
+  img {
+    width: 300px;
+    height: auto;
+    filter: blur(25px) brightness(0.6);
+    transition: filter 1s ease;
+    user-select: none;
+  }
+
+  .revealed {
+    filter: blur(0px) brightness(1);
+  }
+
+  h1 {
+    margin-top: 30px;
+    font-size: 26px;
+    text-shadow: 0 0 10px white;
+  }
+
+  input {
+    margin-top: 20px;
+    padding: 8px 12px;
+    font-size: 18px;
+    background: transparent;
+    border: 2px solid white;
+    color: white;
+    outline: none;
+    text-align: center;
+    font-family: inherit;
+    transition: 0.3s;
+  }
+
+  input:focus {
+    border-color: cyan;
+    box-shadow: 0 0 10px cyan;
+  }
+
+  #code {
+    margin-top: 15px;
+    font-size: 22px;
+    color: #0ff;
+    text-shadow: 0 0 15px #0ff;
+    opacity: 0;
+    transition: opacity 1s ease;
+  }
+</style>
+</head>
+<body>
+  <img id="happy" src="happy sun.png" alt="Happy Sun">
+  <h1>Do you remember me?</h1>
+  <input id="answer" type="text" placeholder="Type here...">
+  <div id="code">05032007</div>
+
+  <script>
+    const input = document.getElementById('answer');
+    const happy = document.getElementById('happy');
+    const code = document.getElementById('code');
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const value = input.value.trim().toLowerCase();
+        if (value === 'happy sun.png') {
+          happy.classList.add('revealed');
+          code.style.opacity = 1;
+
+          // Após 3 segundos, voltar para wondersoftheworld.html
+          setTimeout(() => {
+            window.location.href = 'wondersoftheworld.html';
+          }, 3000);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
