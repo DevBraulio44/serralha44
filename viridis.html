@@ -8,86 +8,71 @@
   html, body {
     margin: 0;
     padding: 0;
+    overflow: hidden;
     height: 100%;
     width: 100%;
-    overflow: hidden;
-    animation: flash 1s infinite alternate;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-wrap: wrap;
-    background-color: purple;
+    animation: bgflash 0.2s infinite alternate;
   }
 
-  @keyframes flash {
-    0% { background-color: purple; }
-    100% { background-color: white; }
+  @keyframes bgflash {
+    from { background-color: #6a00ff; }
+    to { background-color: white; }
   }
 
   .vine {
     position: absolute;
-    width: 150px;
-    height: auto;
-    filter: hue-rotate(90deg) saturate(5) brightness(1.5);
-    opacity: 0.9;
-    image-rendering: pixelated;
+    bottom: 0;
+    width: 60px;
+    animation: float 3s ease-in-out infinite alternate, spin 4s linear infinite;
+    filter: hue-rotate(120deg) saturate(200%);
   }
 
-  #secretButton {
+  @keyframes float {
+    from { transform: translateY(0); }
+    to { transform: translateY(-50px); }
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  #hiddenButton {
     position: absolute;
-    width: 20px;
-    height: 20px;
+    width: 10px;
+    height: 10px;
     background: transparent;
     border: none;
-    top: 50%;
-    left: 50%;
     cursor: pointer;
-    opacity: 0;
-    z-index: 50;
   }
 </style>
 </head>
 <body>
-
-<button id="secretButton"></button>
-
 <script>
-  const numVines = 20;
+  const vineCount = 15;
   const vines = [];
 
-  for (let i = 0; i < numVines; i++) {
-    const vine = document.createElement('img');
-    vine.src = 'vinha.png';
-    vine.className = 'vine';
-    vine.style.left = Math.random() * window.innerWidth + 'px';
-    vine.style.top = Math.random() * window.innerHeight + 'px';
-    document.body.appendChild(vine);
-
-    vines.push({
-      el: vine,
-      rot: Math.random() * 360,
-      speed: (Math.random() * 1 + 0.5) * (Math.random() < 0.5 ? -1 : 1),
-      offset: Math.random() * Math.PI * 2,
-    });
+  for (let i = 0; i < vineCount; i++) {
+    const img = document.createElement("img");
+    img.src = "vinha.png";
+    img.className = "vine";
+    img.style.left = `${i * (window.innerWidth / vineCount)}px`;
+    document.body.appendChild(img);
+    vines.push(img);
   }
 
-  function animate() {
-    const t = Date.now() * 0.002;
-    vines.forEach(v => {
-      v.rot += v.speed;
-      const yOffset = Math.sin(t + v.offset) * 20;
-      v.el.style.transform = `rotate(${v.rot}deg) translateY(${yOffset}px)`;
-    });
-    requestAnimationFrame(animate);
-  }
+  // Escolhe uma vinha aleatória pra colocar o botão
+  const randomVine = vines[Math.floor(Math.random() * vines.length)];
+  const rect = randomVine.getBoundingClientRect();
 
-  animate();
-
-  // Botão invisível leva pra próxima página
-  document.getElementById('secretButton').addEventListener('click', () => {
-    window.location.href = '???nextpage.html'; // coloca aqui o nome da próxima página
-  });
+  const btn = document.createElement("button");
+  btn.id = "hiddenButton";
+  btn.style.left = `${rect.left + Math.random() * 50}px`;
+  btn.style.top = `${rect.top + Math.random() * 50}px`;
+  btn.onclick = () => {
+    window.location.href = "nextpage.html"; // muda aqui depois
+  };
+  document.body.appendChild(btn);
 </script>
-
 </body>
 </html>
