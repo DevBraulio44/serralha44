@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Viridis</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    animation: flash 1s infinite alternate;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    background-color: purple;
+  }
+
+  @keyframes flash {
+    0% { background-color: purple; }
+    100% { background-color: white; }
+  }
+
+  .vine {
+    position: absolute;
+    width: 150px;
+    height: auto;
+    filter: hue-rotate(90deg) saturate(5) brightness(1.5);
+    opacity: 0.9;
+    image-rendering: pixelated;
+  }
+
+  #secretButton {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    background: transparent;
+    border: none;
+    top: 50%;
+    left: 50%;
+    cursor: pointer;
+    opacity: 0;
+    z-index: 50;
+  }
+</style>
+</head>
+<body>
+
+<button id="secretButton"></button>
+
+<script>
+  const numVines = 20;
+  const vines = [];
+
+  for (let i = 0; i < numVines; i++) {
+    const vine = document.createElement('img');
+    vine.src = 'vinha.png';
+    vine.className = 'vine';
+    vine.style.left = Math.random() * window.innerWidth + 'px';
+    vine.style.top = Math.random() * window.innerHeight + 'px';
+    document.body.appendChild(vine);
+
+    vines.push({
+      el: vine,
+      rot: Math.random() * 360,
+      speed: (Math.random() * 1 + 0.5) * (Math.random() < 0.5 ? -1 : 1),
+      offset: Math.random() * Math.PI * 2,
+    });
+  }
+
+  function animate() {
+    const t = Date.now() * 0.002;
+    vines.forEach(v => {
+      v.rot += v.speed;
+      const yOffset = Math.sin(t + v.offset) * 20;
+      v.el.style.transform = `rotate(${v.rot}deg) translateY(${yOffset}px)`;
+    });
+    requestAnimationFrame(animate);
+  }
+
+  animate();
+
+  // Botão invisível leva pra próxima página
+  document.getElementById('secretButton').addEventListener('click', () => {
+    window.location.href = '???nextpage.html'; // coloca aqui o nome da próxima página
+  });
+</script>
+
+</body>
+</html>
