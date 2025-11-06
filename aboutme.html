@@ -91,6 +91,7 @@
     font-size: 15px;
     padding-bottom: 40px;
     text-shadow: 0 0 8px red;
+    text-align: center;
   }
 
   .back-btn {
@@ -110,6 +111,10 @@
   .back-btn:hover {
     transform: scale(1.1);
     box-shadow: 0 0 20px red, 0 0 40px darkred;
+  }
+
+  audio {
+    display: none;
   }
 </style>
 </head>
@@ -173,6 +178,28 @@
 
   <footer>
     <p>Made with care by <strong>Winterstelar</strong></p>
+    <p>📧 Contact me: <a href="mailto:devbraulio0306@gmail.com">devbraulio0306@gmail.com</a></p>
   </footer>
+
+  <audio id="bgMusic" autoplay loop>
+    <source src="softmusic.ogg" type="audio/ogg">
+  </audio>
+
+  <script>
+    // Evita bloqueio de autoplay em navegadores
+    document.addEventListener("click", function playMusic() {
+      const music = document.getElementById("bgMusic");
+      if (music.paused) {
+        music.volume = 0.2;
+        music.play().catch(() => {});
+      }
+      document.removeEventListener("click", playMusic);
+    });
+
+    window.addEventListener("load", () => {
+      const music = document.getElementById("bgMusic");
+      music.volume = 0.2;
+    });
+  </script>
 </body>
 </html>
