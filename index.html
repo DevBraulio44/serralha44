@@ -39,6 +39,11 @@
     }
   }
 
+  .button-container {
+    display: flex;
+    gap: 20px;
+  }
+
   button {
     background-color: darkred;
     color: white;
@@ -64,15 +69,19 @@
 </head>
 <body>
   <h1>WELCOME TO SERRALHA44</h1>
-  <button onclick="enterSite()">ENTER THE GATES</button>
+  
+  <div class="button-container">
+    <button onclick="enterSite('main.html')">ENTER THE GATES</button>
+    <button onclick="enterSite('aboutme.html')">ABOUT ME</button>
+  </div>
 
   <script>
-    function enterSite() {
-      // animação de fade
+    function enterSite(page) {
+      // adiciona efeito de fade
       document.body.classList.add("fade-out");
-      // redireciona depois de 2 segundos
+      // redireciona após 2 segundos
       setTimeout(() => {
-        window.location.href = "main.html";
+        window.location.href = page;
       }, 2000);
     }
   </script>
