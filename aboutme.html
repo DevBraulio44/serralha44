@@ -2,16 +2,177 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Test About Me</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>About Me - Winterstelar</title>
 <style>
-  body {
-    background-color: black;
-    color: red;
-    font-family: Courier New, monospace;
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: #000;
+    color: #ff1a1a;
+    font-family: "Courier New", monospace;
+    overflow-x: hidden;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-shadow: 0 0 8px #ff0000;
+  }
+
+  header {
+    text-align: center;
+    padding-top: 80px;
+    padding-bottom: 30px;
+    animation: flicker 2s infinite alternate;
+  }
+
+  @keyframes flicker {
+    0%, 19%, 21%, 23%, 80%, 100% {
+      opacity: 1;
+      text-shadow: 0 0 15px red, 0 0 30px darkred;
+    }
+    20%, 22%, 24% {
+      opacity: 0.6;
+      text-shadow: none;
+    }
+  }
+
+  h1 {
+    font-size: 42px;
+    letter-spacing: 2px;
+  }
+
+  main {
+    width: 85%;
+    max-width: 900px;
+    background-color: rgba(10, 0, 0, 0.7);
+    border: 1px solid darkred;
+    box-shadow: 0 0 20px #8b0000;
+    border-radius: 10px;
+    padding: 40px;
+    margin-bottom: 60px;
+    animation: fadeIn 1.5s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(40px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  h2 {
+    color: #ff4d4d;
+    border-left: 3px solid red;
+    padding-left: 10px;
+    margin-top: 40px;
+    margin-bottom: 10px;
+    font-size: 24px;
+  }
+
+  p {
+    color: #ffb3b3;
+    font-size: 17px;
+    line-height: 1.8;
+    margin: 0 0 25px 0;
+  }
+
+  a {
+    color: #ff4d4d;
+    text-decoration: none;
+    font-weight: bold;
+  }
+
+  a:hover {
+    color: #ff8080;
+    text-decoration: underline;
+  }
+
+  footer {
+    color: #ff1a1a;
+    font-size: 15px;
+    padding-bottom: 40px;
+    text-shadow: 0 0 8px red;
+  }
+
+  .back-btn {
+    margin-top: 30px;
+    background-color: darkred;
+    border: none;
+    color: white;
+    font-family: 'Courier New', monospace;
+    padding: 12px 35px;
+    font-size: 18px;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 0 10px red;
+    transition: all 0.3s ease;
+  }
+
+  .back-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 20px red, 0 0 40px darkred;
   }
 </style>
 </head>
 <body>
-  <h1>Hello from About Me!</h1>
+  <header>
+    <h1>Welcome to my personal page</h1>
+  </header>
+
+  <main>
+    <h2>About Me</h2>
+    <p>
+      I am a music composer and a game maker, most people call me by <strong>Avernos</strong> or <strong>Winter</strong>.<br>
+      Also check out my SoundCloud which I am starting right now!  
+      👉 <a href="https://soundcloud.com/winterstelar" target="_blank">soundcloud.com/winterstelar</a>
+    </p>
+
+    <h2>My Interests</h2>
+    <p>
+      Well, I really like some series like <strong>Murder Drones</strong> or <strong>Breaking Bad</strong> and some others.<br>
+      I also like listening a lot to <strong>Killswitch Engage</strong> and <strong>Mastodon</strong>, and even <strong>Black Sabbath</strong>.<br>
+      And I love pistachio ice cream... why did I even say that? 😀
+    </p>
+
+    <h2>My Work Time</h2>
+    <p>
+      If I am pretty sure, I worked in music for like 2 or 3 years if I remember.<br>
+      And yes, I am still learning <strong>FL Studio</strong> even with that much time on it,<br>
+      but I have been recently thinking about putting more and more effort into my works!
+    </p>
+
+    <h2>My Projects</h2>
+    <p>
+      I do have quite a lot of projects on Roblox, some have failed, some I am still working on,<br>
+      but I think the best ones yet are <strong>Nevanova</strong> and <strong>Elevators</strong>.<br>
+      Nevanova is a war game, and Elevators is a <strong>Spooky's Jumpscare Mansion</strong>-like game, which I also love!<br>
+      And I will talk about my game interests right now.
+    </p>
+
+    <h2>My Game Interests</h2>
+    <p>
+      My game interests are simple. I like playing <strong>Zelda</strong>, <strong>Super Mario</strong>, and some <strong>SNES</strong> games.<br>
+      I am starting to play <strong>Metroid</strong> and <strong>Megaman</strong>.<br>
+      Some of the games I play more are <strong>Roblox</strong>.<br>
+      One of the best games I’ve played was totally <strong>The Multi-Medium</strong> — that one with the spacesuit guy who travels through universes —  
+      and I also got inspired by it when I made <strong>Elevators</strong>!<br>
+      And of course, the classic <strong>Undertale</strong>, a really well-developed game.<br>
+      I await for <strong>Deltarune Chapter 5</strong>... Toby Fox, I await... 💀
+    </p>
+
+    <h2>What I Can Work With</h2>
+    <p>
+      Well, I usually don’t ask for any money to make music for games or projects,<br>
+      but I do want to help my parents, so I’m accepting any job for money.<br>
+      Just gotta say I also have to study — and if that’s a problem for you, please don’t even mind me.
+    </p>
+
+    <div style="text-align:center;">
+      <button class="back-btn" onclick="window.location.href='index.html'">↩ BACK TO ENTRANCE</button>
+    </div>
+  </main>
+
+  <footer>
+    <p>Made with care by <strong>Winterstelar</strong></p>
+  </footer>
 </body>
 </html>
