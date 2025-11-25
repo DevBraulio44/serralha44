@@ -56,7 +56,7 @@
   <div class="corner top-left" id="wonders">Wonders</div>
   <div class="corner top-right" id="of">Of</div>
   <div class="corner bottom-left" id="the">The</div>
-  <div class="corner bottom-right">World</div>
+  <div class="corner bottom-right" id="world">World</div>
 
   <audio id="bgAudio" src="Out (Flute version).ogg" autoplay loop></audio>
 
@@ -64,6 +64,7 @@
     const wonders = document.getElementById('wonders');
     const of = document.getElementById('of');
     const the = document.getElementById('the');
+    const world = document.getElementById('world');
     const audio = document.getElementById('bgAudio');
 
     // autoplay workaround
@@ -79,6 +80,13 @@
 
     the.addEventListener('click', () => {
       window.location.href = 'viridis.html';
+    });
+
+    world.addEventListener('click', () => {
+      window.location.href = 'guessthebeat.html';
+    });
+      document.querySelector('.bottom-right').addEventListener('click', () => {
+      window.location.href = 'guessthebeat.html';
     });
   </script>
 
