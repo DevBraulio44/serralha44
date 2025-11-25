@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Identify — Vinyl</title>
+  <style>
+    html,body{height:100%;margin:0;background:#000;color:#fff;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    .wrap{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:30px;box-sizing:border-box;position:relative;overflow:hidden}
+    .vinil{width:220px;height:220px;object-fit:contain;display:block}
+    .controls{display:flex;gap:12px;align-items:center}
+    button.play{background:#0f0f0f;border:2px solid #fff;padding:10px 18px;border-radius:8px;color:#fff;cursor:pointer;font-weight:700}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:680px;max-width:calc(100% - 40px)}
+    .answer-box{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.08);padding:12px;border-radius:8px;min-height:44px;display:flex;align-items:center}
+    .answer-box input{width:100%;background:transparent;border:0;color:#fff;outline:none;font-size:16px}
+    .hint{font-size:14px;opacity:0.7}
+
+    /* falling state (we will change to absolute positioning via JS when starting the fall) */
+    .fall-item{transition:none}
+
+    /* doorgate (hidden until triggered) */
+    .doorgate{position:absolute;left:50%;transform:translateX(-50%);bottom:20px;display:none}
+    .message{font-size:14px;opacity:0.85}
+
+    @media (max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}}
+  </style>
+</head>
+<body>
+  <div class="wrap" id="wrap">
+    <!-- IMPORTANT: replace the URLs below with the raw GitHub URLs ou com os caminhos corretos no seu servidor. -->
+    <!-- Exemplo de substituição: https://raw.githubusercontent.com/SEU_USUARIO/SEU_REPO/main/assets/Vinil.gif -->
+
+    <!-- Image will not be added to DOM until audio plays to ensure GIF only plays together with audio -->
+    <div class="controls">
+      <button id="playBtn" class="play">▶︎ Play</button>
+      <div class="hint">Click on play to start the music</div>
+    </div>
+
+    <div style="display:flex;gap:40px;align-items:center;flex-wrap:wrap;justify-content:center;width:100%">
+      <div id="vinilHolder"></div>
+
+      <div style="min-width:320px;max-width:520px">
+        <div class="hint">Identify the drum styles in the music and put the styles IN ORDER on the box</div>
+        <div class="grid" id="grid">
+          <div class="answer-box fall-item"><input placeholder="1" data-index="0"/></div>
+          <div class="answer-box fall-item"><input placeholder="2" data-index="1"/></div>
+          <div class="answer-box fall-item"><input placeholder="3" data-index="2"/></div>
+          <div class="answer-box fall-item"><input placeholder="4" data-index="3"/></div>
+          <div class="answer-box fall-item"><input placeholder="5" data-index="4"/></div>
+          <div class="answer-box fall-item"><input placeholder="6" data-index="5"/></div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:12px">
+          <button id="checkBtn" class="play">Verificar</button>
+          <button id="resetBtn" class="play" style="background:transparent">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hidden audio element. Substitua o src pelo URL correto do arquivo JOGO DO ADIVINHA.ogg AAA-.ogg no GitHub/raw -->
+    <audio id="bgAudio" preload="auto" src="JOGO DO ADIVINHA.ogg"></audio>
+
+    <!-- doorgate (será exibido após a queda quando acertar). Não redireciona por enquanto. -->
+    <img id="doorgate" class="doorgate" src="doorgate.png" alt="Doorgate" width="260" />
+
+  </div>
+
+  <script>
+    // Respostas corretas (em ordem)
+    const ANSWERS = ["Rapid-Fire", "Rock'n Roll", "Hip-Hop", "Indie", "Techno", "WTF"]
+
+    const playBtn = document.getElementById('playBtn')
+    const bgAudio = document.getElementById('bgAudio')
+    const vinilHolder = document.getElementById('vinilHolder')
+    const checkBtn = document.getElementById('checkBtn')
+    const resetBtn = document.getElementById('resetBtn')
+    const doorgate = document.getElementById('doorgate')
+
+    // Helper para normalizar textos para comparação (remove acentos simples, pontuação mínima, case-insensitive)
+    function normalizeAnswer(s){
+      if(!s) return ''
+      return s.toString().trim().toLowerCase().replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s]/g,'') // tira pontuação
+        .replace(/\s+/g,' ') // colapsa espaços
+    }
+
+    // Accept multiple variants for some answers (e.g. rock n roll)
+    function isEquivalent(expected, given){
+      const e = normalizeAnswer(expected)
+      const g = normalizeAnswer(given)
+      if(!g) return false
+      // simple direct compare
+      if(e === g) return true
+      // special cases
+      if(e.includes('rock') && g.includes('rock')) return true
+      if(e.includes('hip') && g.includes('hip')) return true
+      if(e.includes('indie') && g.includes('indie')) return true
+      if(e.includes('techno') && g.includes('techno')) return true
+      if(e.includes('wtf') && g.includes('wtf')) return true
+      if(e.includes('rapid') && g.includes('rapid')) return true
+      return false
+    }
+
+    // Play button behavior: start audio and add gif to DOM so it only plays when audio starts
+    playBtn.addEventListener('click', ()=>{
+      // if audio already playing, pause
+      if(!bgAudio.src || bgAudio.src.includes('REPLACE_WITH_AUDIO_URL')){
+        alert('Por favor substitua o atributo src do elemento <audio> pelo URL correto do arquivo no GitHub/raw.')
+        return
+      }
+
+      if(bgAudio.paused){
+        bgAudio.currentTime = 0
+        bgAudio.play().catch(err=>console.log(err))
+        playBtn.textContent = '⏸︎ Pause'
+        showVinilGif()
+      } else {
+        bgAudio.pause()
+        playBtn.textContent = '▶︎ Play'
+        hideVinilGif()
+      }
+    })
+
+    // Insert the GIF into the holder when audio plays. We do this dynamically so the GIF doesn't run until audio starts.
+    function showVinilGif(){
+      if(vinilHolder.querySelector('img')) return
+      const img = document.createElement('img')
+      img.className = 'vinil'
+      img.alt = 'Vinil'
+      // TODO: replace this src with the raw GitHub URL da Vinil.gif
+      img.src = 'Vinil.gif'
+      vinilHolder.appendChild(img)
+    }
+    function hideVinilGif(){
+      vinilHolder.innerHTML = ''
+    }
+
+    // Verify answers
+    checkBtn.addEventListener('click', ()=>{
+      const inputs = Array.from(document.querySelectorAll('.answer-box input'))
+      const given = inputs.map(i=>i.value)
+      let correct = true
+      for(let i=0;i<ANSWERS.length;i++){
+        if(!isEquivalent(ANSWERS[i], given[i])){ correct = false; break }
+      }
+      if(correct){
+        startFallAnimation()
+      } else {
+        alert('Hm, looks like you missed something there pal.')
+      }
+    })
+
+    resetBtn.addEventListener('click', ()=>{
+      document.querySelectorAll('.answer-box input').forEach(i=>i.value='')
+      // reset fall items positions if they were moved
+      document.querySelectorAll('.fall-item').forEach(el=>{
+        el.style.position = ''
+        el.style.left = ''
+        el.style.top = ''
+        el.style.transform = ''
+      })
+      doorgate.style.display = 'none'
+    })
+
+    // Simple gravity fall for elements. We convert items to absolute and step their position.
+    function startFallAnimation(){
+      const items = Array.from(document.querySelectorAll('.fall-item'))
+      const wrap = document.getElementById('wrap')
+      const wrapRect = wrap.getBoundingClientRect()
+      // convert layout items to absolute positioned clones to avoid layout shift bugs
+      const clones = items.map(it=>{
+        const r = it.getBoundingClientRect()
+        const clone = it.cloneNode(true)
+        clone.style.position = 'absolute'
+        clone.style.left = (r.left - wrapRect.left) + 'px'
+        clone.style.top = (r.top - wrapRect.top) + 'px'
+        clone.style.width = r.width + 'px'
+        clone.style.height = r.height + 'px'
+        clone.style.boxSizing = 'border-box'
+        clone.style.pointerEvents = 'none'
+        wrap.appendChild(clone)
+        it.style.visibility = 'hidden'
+        return {el:clone, x:r.left - wrapRect.left, y:r.top - wrapRect.top, vy:0, rot:0, vr: (Math.random()-0.5)*0.4}
+      })
+
+      const g = 1500 // px/s^2 strong gravity to look dramatic
+      let last = performance.now()
+      const start = performance.now()
+      const maxRun = 6000 // ms
+
+      function step(now){
+        const dt = (now-last)/1000
+        last = now
+        clones.forEach(obj=>{
+          obj.vy += g*dt
+          obj.y += obj.vy*dt
+          obj.rot += obj.vr*dt*100
+          obj.el.style.top = obj.y + 'px'
+          obj.el.style.transform = 'rotate(' + obj.rot + 'deg)'
+        })
+        // stop when all items are below the viewport
+        const allBelow = clones.every(o => (o.y - 0) > window.innerHeight + 200)
+        if(allBelow || (now - start) > maxRun){
+          finishFall(clones)
+          return
+        }
+        requestAnimationFrame(step)
+      }
+      requestAnimationFrame(step)
+    }
+
+    function finishFall(clones){
+      // remove clones and show doorgate image
+      clones.forEach(c=>c.el.remove())
+      document.querySelectorAll('.fall-item').forEach(it=>it.remove())
+      doorgate.style.display = 'block'
+      // Do NOT add navigation yet: the doorgate is only visible and inert for now.
+    }
+
+    // Prevent audio context autoplay policies errors on some browsers by resuming audio on first user gesture
+    window.addEventListener('click', ()=>{
+      if(bgAudio && bgAudio.paused){
+        // do nothing — we wait for explicit play
+      }
+    }, {once:true})
+
+    // Helpful dev warning if resource URLs not replaced
+    console.log('AVISO: Substitua REPLACE_WITH_GIF_URL, REPLACE_WITH_AUDIO_URL e REPLACE_WITH_IMAGE_URL pelos URLs reais no GitHub/raw ou no seu servidor.')
+  </script>
+</body>
+</html>
