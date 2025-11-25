@@ -61,30 +61,30 @@
   <audio id="bgAudio" src="Out (Flute version).ogg" autoplay loop></audio>
 
   <script>
-    const wonders = document.getElementById('wonders');
-    const of = document.getElementById('of');
-    const the = document.getElementById('the');
-    const world = document.getElementById('world');
-    const audio = document.getElementById('bgAudio');
+  const wonders = document.getElementById('wonders');
+  const of = document.getElementById('of');
+  const the = document.getElementById('the');
+  const world = document.querySelector('.bottom-right');
+  const audio = document.getElementById('bgAudio');
 
-    // autoplay workaround
-    setTimeout(() => audio.play().catch(() => {}), 500);
+  // autoplay workaround
+  setTimeout(() => audio.play().catch(() => {}), 500);
 
-    wonders.addEventListener('click', () => {
-      window.location.href = 'onemoretime.html';
-    });
+  wonders.addEventListener('click', () => {
+    window.location.href = 'onemoretime.html';
+  });
 
-    of.addEventListener('click', () => {
-      window.location.href = 'doyourememberme.html';
-    });
+  of.addEventListener('click', () => {
+    window.location.href = 'doyourememberme.html';
+  });
 
-    the.addEventListener('click', () => {
-      window.location.href = 'viridis.html';
-    });
+  the.addEventListener('click', () => {
+    window.location.href = 'viridis.html';
+  });
 
-    world.addEventListener('click', () => {
-      window.location.href = 'guessthebeat.html';
-  </script>
-
+  world.addEventListener('click', () => {
+    window.location.href = 'guessthebeat.html';
+  });
+</script>
 </body>
 </html>
