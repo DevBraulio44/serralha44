@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Reach me if you can</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+  }
+
+  #bounce {
+    position: absolute;
+    width: 200px;
+    height: 120px;
+    background: purple;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: Arial, sans-serif;
+    font-size: 32px;
+    border-radius: 16px;
+    user-select: none;
+  }
+
+  #btn {
+    position: relative;
+    z-index: 10;
+    padding: 15px 30px;
+    background: white;
+    color: black;
+    border: none;
+    border-radius: 10px;
+    font-size: 20px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="bounce">DVD</div>
+<button id="btn">Click Me</button>
+
+<script>
+  const box = document.getElementById("bounce");
+
+  let x = 50;
+  let y = 50;
+  let dx = 6;
+  let dy = 6;
+
+  function animate() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    x += dx;
+    y += dy;
+
+    if (x <= 0 || x + box.offsetWidth >= w) dx *= -1;
+    if (y <= 0 || y + box.offsetHeight >= h) dy *= -1;
+
+    box.style.left = x + "px";
+    box.style.top = y + "px";
+
+    requestAnimationFrame(animate);
+  }
+
+  animate();
+
+  document.getElementById("btn").addEventListener("click", () => {
+    window.location.href = "nextpage.html";
+  });
+</script>
+
+</body>
+</html>
