@@ -13,22 +13,36 @@
     justify-content: center;
     align-items: center;
     height: 100vh;
-    font-size: 40px;
     margin: 0;
+    font-size: 40px;
+    flex-direction: column;
+  }
+
+  #realButton {
+    display: none;
+    margin-top: 20px;
+    padding: 20px 40px;
+    font-size: 24px;
+    background: white;
+    color: black;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
   }
 </style>
 </head>
 <body>
 
-CLICK IF YOU CAN
+<div>CLICK IF YOU CAN</div>
+<button id="realButton">YOU GOT ME!</button>
 
 <script>
 window.onload = () => {
-  // Abre a popup
+  // Abre popup PEQUENO
   const popup = window.open(
     "",
     "dvdBounce",
-    "width=400,height=250,left=100,top=100"
+    "width=220,height=140,left=100,top=100"
   );
 
   // Conteúdo da popup
@@ -46,25 +60,33 @@ window.onload = () => {
           height: 100vh;
         }
         button {
-          padding: 20px 40px;
-          font-size: 30px;
+          padding: 12px 25px;
+          font-size: 20px;
           background: white;
           color: black;
           border: none;
-          border-radius: 12px;
+          border-radius: 10px;
           cursor: pointer;
         }
       </style>
     </head>
     <body>
-      <button onclick="window.location.href='nextpage.html'">CLICK ME</button>
+      <button id="closeBtn">CLICK ME</button>
+
+      <script>
+        document.getElementById("closeBtn").onclick = () => {
+          window.opener.postMessage("popup_clicked", "*");
+          window.close();
+        };
+      <\/script>
+
     </body>
     </html>
   `);
 
-  // Velocidade MUITO maior
-  let dx = 25;
-  let dy = 25;
+  // Movimento do popup
+  let dx = 20;
+  let dy = 20;
 
   function bounce() {
     if (popup.closed) return;
@@ -85,11 +107,17 @@ window.onload = () => {
     if (y <= 0 || y >= maxY) dy *= -1;
 
     popup.moveTo(x, y);
-
     requestAnimationFrame(bounce);
   }
 
   bounce();
+
+  // Quando clicar no botão do popup → aparece o botão real
+  window.addEventListener("message", (e) => {
+    if (e.data === "popup_clicked") {
+      document.getElementById("realButton").style.display = "block";
+    }
+  });
 };
 </script>
 
