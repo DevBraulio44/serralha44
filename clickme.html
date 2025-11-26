@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Click me if you can</title>
+<title>Main Page</title>
 <style>
   body {
     background: black;
@@ -13,24 +13,25 @@
     justify-content: center;
     align-items: center;
     height: 100vh;
-    font-size: 30px;
+    font-size: 40px;
+    margin: 0;
   }
 </style>
 </head>
 <body>
 
-Main Page Loaded
+CLICK IF YOU CAN
 
 <script>
 window.onload = () => {
-  // Abre a popup imediatamente
+  // Abre a popup
   const popup = window.open(
     "",
     "dvdBounce",
     "width=400,height=250,left=100,top=100"
   );
 
-  // Escreve o conteúdo da popup
+  // Conteúdo da popup
   popup.document.write(`
     <html>
     <head>
@@ -39,23 +40,31 @@ window.onload = () => {
         body {
           margin: 0;
           background: black;
-          color: white;
           display: flex;
           justify-content: center;
           align-items: center;
           height: 100vh;
-          font-size: 50px;
-          font-family: Arial, sans-serif;
+        }
+        button {
+          padding: 20px 40px;
+          font-size: 30px;
+          background: white;
+          color: black;
+          border: none;
+          border-radius: 12px;
+          cursor: pointer;
         }
       </style>
     </head>
-    <body>DVD</body>
+    <body>
+      <button onclick="window.location.href='nextpage.html'">CLICK ME</button>
+    </body>
     </html>
   `);
 
-  // Script da animação (janela quicando)
-  let dx = 8;
-  let dy = 8;
+  // Velocidade MUITO maior
+  let dx = 25;
+  let dy = 25;
 
   function bounce() {
     if (popup.closed) return;
