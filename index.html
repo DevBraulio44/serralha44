@@ -1,89 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Serralha44 - Entrance</title>
-<style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    width: 100%;
-    background-color: black;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    font-family: 'Courier New', monospace;
-    color: red;
-    transition: opacity 2s ease;
-  }
-
-  h1 {
-    font-size: 40px;
-    text-shadow: 0 0 20px red, 0 0 40px darkred;
-    margin-bottom: 60px;
-    animation: flicker 2s infinite alternate;
-  }
-
-  @keyframes flicker {
-    0%, 18%, 22%, 25%, 53%, 57%, 100% {
-      opacity: 1;
-      text-shadow: 0 0 20px red, 0 0 40px darkred;
-    }
-    20%, 24%, 55% {
-      opacity: 0.6;
-      text-shadow: none;
-    }
-  }
-
-  .button-container {
-    display: flex;
-    gap: 20px;
-  }
-
-  button {
-    background-color: darkred;
-    color: white;
-    border: none;
-    padding: 18px 50px;
-    border-radius: 10px;
-    font-size: 22px;
-    cursor: pointer;
-    font-family: 'Courier New', monospace;
-    box-shadow: 0 0 15px crimson;
-    transition: transform 0.2s ease, box-shadow 0.3s;
-  }
-
-  button:hover {
-    transform: scale(1.1);
-    box-shadow: 0 0 30px red, 0 0 60px darkred;
-  }
-
-  .fade-out {
-    opacity: 0;
-  }
-</style>
+    <meta charset="UTF-8">
+    <title>My 2014 Blog</title>
+    <style>
+        body {
+            background: #d6d6d6 url('https://i.imgur.com/AKJgYyV.png');
+            font-family: Arial, sans-serif;
+            color: #000;
+        }
+        .container {
+            width: 700px;
+            margin: 40px auto;
+            background: white;
+            padding: 20px;
+            border: 3px solid #444;
+            box-shadow: 0 0 10px #555;
+            position: relative;
+        }
+        h2 {
+            background: #3498db;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        /* Botão escondido */
+        #hiddenBtn {
+            position: absolute;
+            right: -40px;
+            top: 50px;
+            width: 30px;
+            height: 30px;
+            background: #888;
+            border: 2px solid black;
+            cursor: pointer;
+        }
+        #secretPanel {
+            position: absolute;
+            right: -200px;
+            top: 90px;
+            width: 180px;
+            height: 80px;
+            background: #222;
+            color: white;
+            padding: 10px;
+            display: none;
+        }
+        /* Efeito glitch */
+        @keyframes glitch {
+            0% { transform: translate(0,0); filter: hue-rotate(0deg); }
+            20% { transform: translate(2px,-2px); filter: hue-rotate(30deg); }
+            40% { transform: translate(-2px,2px); filter: hue-rotate(90deg); }
+            60% { transform: translate(3px,-1px); filter: hue-rotate(180deg); }
+            80% { transform: translate(-3px,1px); filter: hue-rotate(250deg); }
+            100% { transform: translate(0,0); filter: hue-rotate(360deg); }
+        }
+        .glitching {
+            animation: glitch 0.1s infinite;
+        }
+    </style>
 </head>
 <body>
-  <h1>WELCOME TO SERRALHA44</h1>
-  
-  <div class="button-container">
-    <button onclick="enterSite('main.html')">ENTER THE GATES (This site contains flashing lights)</button>
-    <button onclick="enterSite('aboutme.html')">ABOUT ME</button>
-  </div>
+    <div class="container" id="mainBox">
+        <div id="hiddenBtn"></div>
+        <div id="secretPanel">CLICK ME</div>
 
-  <script>
-    function enterSite(page) {
-      // adiciona efeito de fade
-      document.body.classList.add("fade-out");
-      // redireciona após 2 segundos
-      setTimeout(() => {
-        window.location.href = page;
-      }, 2000);
-    }
-  </script>
+        <h2>Welcome!</h2>
+        <p>Hello guys, how are you going, welcome to my site! well its a pretty unusual site i think, there is nothing much here, i will keep adding stuff until i think its ok to say its done.</p>
+
+        <h2>Roblox Stuff</h2>
+        <p>You guys seen the new things that has been going out? Oh i think its really trash, like i play roblox since 2016 and their UGC and items just got worse and worse overtime, i wish i could go back in time and like appreciate the moments i had at 2016 or 2018 they were really cool.</p>
+
+        <h2>Undertale</h2>
+        <p>Also undertale! Ohh my god undertale, it had been a time since i played it, i need to get all those routes, i will take a time to do it.</p>
+    </div>
+
+<script>
+    const btn = document.getElementById('hiddenBtn');
+    const panel = document.getElementById('secretPanel');
+    const box = document.getElementById('mainBox');
+
+    btn.onclick = () => {
+        panel.style.display = 'block';
+        panel.style.right = '10px';
+    };
+
+    panel.onclick = () => {
+        box.classList.add('glitching');
+        setTimeout(() => {
+            window.location.href = 'main.html';
+        }, 5000);
+    };
+</script>
 </body>
 </html>
