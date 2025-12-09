@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Serralha 44</title>
+    <title>MY COOL SITE AYY</title>
     <style>
         body {
             background: #f2f2f2;
@@ -27,15 +27,18 @@
         /* Botão escondido */
         #hiddenBtn {
             position: absolute;
-            top: 300px; /* posicionei no fundo real do site, nao na caixa branca */
+            top: 300px;
             left: 50px;
             width: 40px;
             height: 40px;
             background: url('button.png') no-repeat center center;
             background-size: contain;
+
+            /* leve camada escura pra ficar visível mas ainda escondido */
+            filter: brightness(0.75);
+
             border: none;
             cursor: pointer;
-            opacity: 0.25; /* quase invisível, se camufla no fundo branco */
         }
         #secretPanel {
             position: absolute;
