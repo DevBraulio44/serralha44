@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MY COOL SITE AYY</title>
+    <title>My 2014 Blog</title>
     <style>
         body {
             background: #f2f2f2;
@@ -31,11 +31,13 @@
             left: 50px;
             width: 40px;
             height: 40px;
+
             background: url('button.png') no-repeat center center;
             background-size: contain;
 
-            /* leve camada escura pra ficar visível mas ainda escondido */
-            filter: brightness(0.75);
+            /* AGORA realmente camuflado no fundo sem aparecer demais */
+            filter: brightness(0.95) contrast(0.9);
+            opacity: 0.02; /* quase invisível, mas ainda clicável */
 
             border: none;
             cursor: pointer;
@@ -86,7 +88,7 @@
     const panel = document.getElementById('secretPanel');
     const box = document.getElementById('mainBox');
 
-    btn.onclick = () => {
+    document.getElementById('hiddenBtn').onclick = () => {
         panel.style.display = 'block';
         panel.style.right = '10px';
     };
