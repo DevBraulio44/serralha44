@@ -27,22 +27,22 @@
         /* Botão escondido */
         #hiddenBtn {
             position: absolute;
-            right: 10px;
-            bottom: 10px;
-            padding: 8px 14px;
-            background: #3498db;
-            color: white;
-            font-weight: bold;
+            top: 300px; /* posicionei no fundo real do site, nao na caixa branca */
+            left: 50px;
+            width: 40px;
+            height: 40px;
+            background: url('button.png') no-repeat center center;
+            background-size: contain;
             border: none;
-            border-radius: 5px;
             cursor: pointer;
+            opacity: 0.01; /* quase invisível, se camufla no fundo branco */
         }
         #secretPanel {
             position: absolute;
-            right: 10px;
-            bottom: 60px;
+            right: 20px;
+            bottom: 70px;
             padding: 10px;
-            background: #222;
+            background: rgba(0,0,0,0.85);
             color: white;
             border-radius: 5px;
             display: none;
@@ -63,8 +63,7 @@
 </head>
 <body>
     <div class="container" id="mainBox">
-        <div id="hiddenBtn"></div>
-        <div id="secretPanel">CLICK ME</div>
+        <!-- nada aqui do botão -->
 
         <h2>Welcome!</h2>
         <p>Hello guys, how are you going, welcome to my site! well its a pretty unusual site i think, there is nothing much here, i will keep adding stuff until i think its ok to say its done.</p>
@@ -75,6 +74,9 @@
         <h2>Undertale</h2>
         <p>Also undertale! Ohh my god undertale, it had been a time since i played it, i need to get all those routes, i will take a time to do it.</p>
     </div>
+
+    <!-- BOTAO ESCONDIDO NO BACKGROUND REAL DO SITE -->
+    <button id="hiddenBtn"></button>
 
 <script>
     const btn = document.getElementById('hiddenBtn');
