@@ -84,18 +84,20 @@
     <button id="hiddenBtn"></button>
 
 <script>
-    const btn = document.getElementById('hiddenBtn');
-    const panel = document.getElementById('secretPanel');
+    const hidden = document.getElementById('hiddenBtn');
     const box = document.getElementById('mainBox');
 
-    document.getElementById('hiddenBtn').onclick = () => {
-        panel.style.display = 'block';
-        panel.style.right = '10px';
-    };
+    hidden.onclick = () => {
+        // ativa o glitch
+        let intensity = 1;
+        const glitchInterval = setInterval(() => {
+            intensity += 0.5;
+            box.style.transform = `scale(${1 + intensity * 0.05}) rotate(${intensity * 3}deg)`;
+            box.style.filter = `contrast(${1 + intensity}) hue-rotate(${intensity * 40}deg)`;
+        }, 120);
 
-    panel.onclick = () => {
-        box.classList.add('glitching');
         setTimeout(() => {
+            clearInterval(glitchInterval);
             window.location.href = 'main.html';
         }, 5000);
     };
