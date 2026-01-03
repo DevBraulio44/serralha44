@@ -2,382 +2,249 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Horror Engine 2.0</title>
+    <title>Horror Engine - Corrigido</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; cursor: none; }
-        
-        /* Container do Jogo */
-        #game-container { position: relative; width: 100vw; height: 100vh; background: #000; }
-        
-        /* O Canvas onde o 3D é desenhado */
-        canvas { display: block; width: 100%; height: 100%; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', monospace; cursor: none; }
+        canvas { display: block; width: 100vw; height: 100vh; filter: contrast(1.2) brightness(0.8); }
 
-        /* A Lanterna (Vignette) */
-        #flashlight {
+        /* Máscara da Lanterna */
+        #vignette {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle at center, transparent 10%, rgba(0,0,0,0.8) 35%, rgba(0,0,0,1) 70%);
-            pointer-events: none;
-            mix-blend-mode: multiply;
-            z-index: 5;
+            background: radial-gradient(circle, transparent 5%, rgba(0,0,0,0.95) 40%, black 80%);
+            pointer-events: none; z-index: 10;
         }
 
-        /* Interface Mínima */
-        #ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; align-items: center; justify-content: center;
-            z-index: 10; pointer-events: none;
-        }
-        
-        #start-text {
-            color: #444; font-size: 20px; letter-spacing: 5px; text-transform: uppercase;
-            animation: pulse 2s infinite;
+        #ui {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #500; font-size: 18px; text-align: center; z-index: 20;
+            pointer-events: none; text-transform: uppercase; letter-spacing: 4px;
         }
 
         #jumpscare-overlay {
-            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: black; z-index: 20;
-            align-items: center; justify-content: center;
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; z-index: 100; align-items: center; justify-content: center;
         }
-        
-        #jumpscare-img {
-            width: 100%; height: 100%; object-fit: cover;
-        }
-
-        @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 0.8; } 100% { opacity: 0.3; } }
+        #jumpscare-img { width: 100%; height: 100%; object-fit: cover; }
     </style>
 </head>
 <body>
 
-<div id="game-container">
-    <canvas id="screen"></canvas>
-    <div id="flashlight"></div>
+    <div id="ui">Clique para abrir os olhos</div>
+    <div id="vignette"></div>
+    <canvas id="game"></canvas>
     
-    <div id="ui-layer">
-        <div id="start-text">Clique para Acordar</div>
-    </div>
-
     <div id="jumpscare-overlay">
-        <img id="jumpscare-img-element" src="" />
+        <img id="jumpscare-img" src="" />
     </div>
-</div>
 
 <script>
-    // ==========================================
-    // CONFIGURAÇÃO DA IMAGEM DO MONSTRO
-    // ==========================================
-    
-    // ATENÇÃO: Substitua o link abaixo pelo link do seu GitHub (clique em "Raw" no github para pegar o link da imagem)
-    // Se você não mudar, vai usar uma imagem genérica assustadora.
-    const MONSTER_URL = "https://i.pinimg.com/originals/8a/7e/61/8a7e61a403067e6c4046d338bc449339.jpg"; 
-    
-    // ==========================================
-    
-    const canvas = document.getElementById('screen');
-    const ctx = canvas.getContext('2d', { alpha: false }); // Otimização
-    const startText = document.getElementById('start-text');
-    const flashlight = document.getElementById('flashlight');
+    // --- CONFIGURAÇÃO DO MONSTRO ---
+    // Substitua pelo link 'Raw' do seu Jumpscare.png no GitHub
+    const MONSTER_URL = "https://i.pinimg.com/originals/8a/7e/61/8a7e61a403067e6c4046d338bc449339.jpg";
 
-    let width = window.innerWidth;
-    let height = window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const ui = document.getElementById('ui');
+    
+    let w = canvas.width = window.innerWidth;
+    let h = canvas.height = window.innerHeight;
 
-    // --- AUDIO SYSTEM (Web Audio API) ---
-    // Isso gera som via código, garantindo que funcione sem baixar arquivos
+    // Configurações de Áudio (Drone)
     let audioCtx;
-    let droneOsc;
-    let gainNode;
-
-    function initAudio() {
+    function startAudio() {
         if (!audioCtx) {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            audioCtx = new AudioContext();
-            
-            // Som Ambiente (Drone Grave)
-            droneOsc = audioCtx.createOscillator();
-            droneOsc.type = 'sawtooth';
-            droneOsc.frequency.value = 50; // Baixa frequência
-
-            // Filtro para deixar o som abafado e assustador
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
             const filter = audioCtx.createBiquadFilter();
+            osc.type = 'brownian'; // Ruído marrom é mais abafado e assustador
+            osc.frequency.value = 40;
             filter.type = 'lowpass';
-            filter.frequency.value = 120;
-
-            gainNode = audioCtx.createGain();
-            gainNode.gain.value = 0.15; // Volume baixo
-
-            droneOsc.connect(filter);
-            filter.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            droneOsc.start();
-        } else if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
+            filter.frequency.value = 100;
+            gain.gain.value = 0.1;
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
         }
     }
 
-    // --- GAME ENGINE ---
-    
-    // Mapa Gigante (1 = Parede, 0 = Vazio)
-    // Um labirinto mais apertado
-    const mapSize = 32;
-    const map = [];
-    // Gerar mapa proceduralmente (bordas fechadas, pilares aleatórios)
-    for (let x = 0; x < mapSize; x++) {
-        map[x] = [];
-        for (let y = 0; y < mapSize; y++) {
-            if (x === 0 || x === mapSize - 1 || y === 0 || y === mapSize - 1) {
-                map[x][y] = 1; // Paredes externas
-            } else if (Math.random() < 0.15) { 
-                map[x][y] = 1; // Paredes aleatórias (pilares)
-            } else {
-                map[x][y] = 0; // Chão
-            }
-        }
-    }
-    // Limpar área inicial
-    map[2][2] = 0; map[2][3] = 0; map[3][2] = 0;
+    // Mapa Estreito (1 = Parede, 0 = Caminho)
+    const mapSize = 24;
+    const worldMap = [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,1,0,1,0,1,1,1,1,0,1,0,1,1,1,1,1,1,1,1,1,0,1],
+        [1,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,1],
+        [1,0,1,1,1,1,1,0,1,1,1,1,1,1,1,0,1,0,1,1,0,1,0,1],
+        [1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
+        [1,1,1,1,1,1,1,0,1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,1],
+        [1,0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,1],
+        [1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,1,1,1,1,0,1,1],
+        [1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1],
+        [1,0,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,0,1],
+        [1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
+        [1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ];
 
     // Player
-    let posX = 2.5, posY = 2.5;
-    let dirX = -1, dirY = 0;
+    let posX = 1.5, posY = 1.5;
+    let dirX = 1, dirY = 0;
     let planeX = 0, planeY = 0.66;
-    let pitch = 0; // Olhar para cima/baixo
-    
-    // Controles
-    let keys = {};
+    let pitch = 0; // Olhar cima/baixo
     let running = false;
-    let locked = false;
 
-    // Monstro
-    let monsterX = mapSize - 2;
-    let monsterY = mapSize - 2;
-    let monsterImg = new Image();
-    monsterImg.src = MONSTER_URL; 
-    let caught = false;
+    // Inimigo
+    let enemyX = 15, enemyY = 15;
+    const enemyImg = new Image();
+    enemyImg.src = MONSTER_URL;
 
-    // Buffers
-    let zBuffer = new Array(width).fill(0); // Para oclusão (parede na frente do bicho)
+    let zBuffer = new Array(w);
+    let isGameOver = false;
 
-    // --- INPUTS ---
-    window.addEventListener('keydown', e => {
-        keys[e.code] = true;
-        if (e.shiftKey) running = true;
-    });
-    window.addEventListener('keyup', e => {
-        keys[e.code] = false;
-        if (!e.shiftKey) running = false;
-    });
-
+    // --- CONTROLES MOUSE (SEM INVERSÃO) ---
     document.addEventListener('click', () => {
         canvas.requestPointerLock();
-        initAudio();
-        startText.style.display = 'none';
+        ui.style.display = 'none';
+        startAudio();
     });
 
-    document.addEventListener('pointerlockchange', () => {
-        locked = document.pointerLockElement === canvas;
+    document.addEventListener('mousemove', (e) => {
+        if (document.pointerLockElement === canvas && !isGameOver) {
+            // ROTAÇÃO LATERAL (X) - SINAL POSITIVO PARA NÃO INVERTER
+            let rotSpeed = e.movementX * 0.002;
+            let oldDirX = dirX;
+            dirX = dirX * Math.cos(rotSpeed) - dirY * Math.sin(rotSpeed);
+            dirY = oldDirX * Math.sin(rotSpeed) + dirY * Math.cos(rotSpeed);
+            let oldPlaneX = planeX;
+            planeX = planeX * Math.cos(rotSpeed) - planeY * Math.sin(rotSpeed);
+            planeY = oldPlaneX * Math.sin(rotSpeed) + planeY * Math.cos(rotSpeed);
+
+            // OLHAR CIMA/BAIXO (Y) - SINAL NEGATIVO PARA NÃO INVERTER
+            pitch -= e.movementY * 0.8;
+            pitch = Math.max(-250, Math.min(250, pitch)); // Trava o pescoço
+        }
     });
 
-    document.addEventListener('mousemove', e => {
-        if (!locked || caught) return;
-        
-        // Sensibilidade
-        const sensitivity = 0.002;
-        const pitchSensitivity = 0.8;
+    const keys = {};
+    window.onkeydown = (e) => { keys[e.code] = true; if(e.shiftKey) running = true; };
+    window.onkeyup = (e) => { keys[e.code] = false; if(!e.shiftKey) running = false; };
 
-        // Rotação (Yaw) - CORRIGIDA (Sinal invertido para ficar natural)
-        let rot = e.movementX * sensitivity;
-        let oldDirX = dirX;
-        dirX = dirX * Math.cos(rot) - dirY * Math.sin(rot);
-        dirY = oldDirX * Math.sin(rot) + dirY * Math.cos(rot);
-        let oldPlaneX = planeX;
-        planeX = planeX * Math.cos(rot) - planeY * Math.sin(rot);
-        planeY = oldPlaneX * Math.sin(rot) + planeY * Math.cos(rot);
+    function update() {
+        if (isGameOver) return;
 
-        // Olhar cima/baixo (Pitch)
-        pitch -= e.movementY * pitchSensitivity;
-        // Limitar para não quebrar o pescoço
-        if (pitch > 200) pitch = 200;
-        if (pitch < -200) pitch = -200;
-    });
+        let moveSpeed = running ? 0.08 : 0.04;
 
-    // --- LOOP PRINCIPAL ---
-    function gameLoop() {
-        if (caught) return;
-
-        // 1. Movimento
-        let moveSpeed = running ? 0.08 : 0.04; // Correr ou andar
-        
-        // Colisão simples (deslizar nas paredes)
         if (keys['KeyW']) {
-            if (map[Math.floor(posX + dirX * moveSpeed * 2)][Math.floor(posY)] === 0) posX += dirX * moveSpeed;
-            if (map[Math.floor(posX)][Math.floor(posY + dirY * moveSpeed * 2)] === 0) posY += dirY * moveSpeed;
+            if (worldMap[Math.floor(posX + dirX * moveSpeed)][Math.floor(posY)] === 0) posX += dirX * moveSpeed;
+            if (worldMap[Math.floor(posX)][Math.floor(posY + dirY * moveSpeed)] === 0) posY += dirY * moveSpeed;
         }
         if (keys['KeyS']) {
-            if (map[Math.floor(posX - dirX * moveSpeed * 2)][Math.floor(posY)] === 0) posX -= dirX * moveSpeed;
-            if (map[Math.floor(posX)][Math.floor(posY - dirY * moveSpeed * 2)] === 0) posY -= dirY * moveSpeed;
+            if (worldMap[Math.floor(posX - dirX * moveSpeed)][Math.floor(posY)] === 0) posX -= dirX * moveSpeed;
+            if (worldMap[Math.floor(posX)][Math.floor(posY - dirY * moveSpeed)] === 0) posY -= dirY * moveSpeed;
         }
-        // Strafe (andar de lado)
-        if (keys['KeyD']) {
-            if (map[Math.floor(posX + planeX * moveSpeed * 2)][Math.floor(posY)] === 0) posX += planeX * moveSpeed;
-            if (map[Math.floor(posX)][Math.floor(posY + planeY * moveSpeed * 2)] === 0) posY += planeY * moveSpeed;
+        if (keys['KeyA']) { // Strafe Left
+            if (worldMap[Math.floor(posX - planeX * moveSpeed)][Math.floor(posY)] === 0) posX -= planeX * moveSpeed;
+            if (worldMap[Math.floor(posX)][Math.floor(posY - planeY * moveSpeed)] === 0) posY -= planeY * moveSpeed;
         }
-        if (keys['KeyA']) {
-            if (map[Math.floor(posX - planeX * moveSpeed * 2)][Math.floor(posY)] === 0) posX -= planeX * moveSpeed;
-            if (map[Math.floor(posX)][Math.floor(posY - planeY * moveSpeed * 2)] === 0) posY -= planeY * moveSpeed;
-        }
-
-        // 2. IA do Monstro
-        let distToPlayer = Math.hypot(posX - monsterX, posY - monsterY);
-        if (distToPlayer < 0.6) {
-            // JUMPSCARE
-            caught = true;
-            document.exitPointerLock();
-            const jumpOverlay = document.getElementById('jumpscare-overlay');
-            const jumpImg = document.getElementById('jumpscare-img-element');
-            jumpImg.src = MONSTER_URL; // Usa a mesma imagem
-            jumpOverlay.style.display = 'flex';
-            
-            // Som do grito (Ruído Branco alto)
-            if(audioCtx) {
-                const scream = audioCtx.createOscillator();
-                const screamGain = audioCtx.createGain();
-                scream.type = 'sawtooth';
-                scream.frequency.setValueAtTime(200, audioCtx.currentTime);
-                scream.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.5);
-                screamGain.gain.value = 0.8;
-                scream.connect(screamGain);
-                screamGain.connect(audioCtx.destination);
-                scream.start();
-                scream.stop(audioCtx.currentTime + 1);
-            }
-        } else {
-            // Perseguição lenta
-            let speed = 0.035;
-            monsterX += ((posX - monsterX) / distToPlayer) * speed;
-            monsterY += ((posY - monsterY) / distToPlayer) * speed;
+        if (keys['KeyD']) { // Strafe Right
+            if (worldMap[Math.floor(posX + planeX * moveSpeed)][Math.floor(posY)] === 0) posX += planeX * moveSpeed;
+            if (worldMap[Math.floor(posX)][Math.floor(posY + planeY * moveSpeed)] === 0) posY += planeY * moveSpeed;
         }
 
-        // 3. Renderização (Raycasting)
-        
-        // Teto e Chão
-        // Gradiente dinâmico baseado no Pitch
-        let horizon = height / 2 + pitch;
-        ctx.fillStyle = "#111"; // Teto
-        ctx.fillRect(0, 0, width, horizon);
-        ctx.fillStyle = "#222"; // Chão
-        ctx.fillRect(0, horizon, width, height - horizon);
+        // IA do Bicho
+        let dx = posX - enemyX;
+        let dy = posY - enemyY;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        if(dist < 0.4) {
+            isGameOver = true;
+            document.getElementById('jumpscare-overlay').style.display = 'flex';
+            document.getElementById('jumpscare-img').src = MONSTER_URL;
+            return;
+        }
+        enemyX += (dx/dist) * 0.035;
+        enemyY += (dy/dist) * 0.035;
+    }
 
-        // Paredes
-        for (let x = 0; x < width; x++) {
-            let cameraX = 2 * x / width - 1;
+    function render() {
+        // Limpar tela (Chão e Teto)
+        ctx.fillStyle = "#050505"; ctx.fillRect(0, 0, w, h/2 + pitch);
+        ctx.fillStyle = "#0a0a0a"; ctx.fillRect(0, h/2 + pitch, w, h/2 - pitch);
+
+        // Paredes (Raycasting)
+        for (let x = 0; x < w; x++) {
+            let cameraX = 2 * x / w - 1;
             let rayDirX = dirX + planeX * cameraX;
             let rayDirY = dirY + planeY * cameraX;
 
             let mapX = Math.floor(posX);
             let mapY = Math.floor(posY);
 
-            let sideDistX, sideDistY;
             let deltaDistX = Math.abs(1 / rayDirX);
             let deltaDistY = Math.abs(1 / rayDirY);
-            let perpWallDist;
-            let stepX, stepY;
-            let hit = 0;
-            let side;
+            
+            let stepX, stepY, sideDistX, sideDistY;
 
             if (rayDirX < 0) { stepX = -1; sideDistX = (posX - mapX) * deltaDistX; }
             else { stepX = 1; sideDistX = (mapX + 1.0 - posX) * deltaDistX; }
             if (rayDirY < 0) { stepY = -1; sideDistY = (posY - mapY) * deltaDistY; }
             else { stepY = 1; sideDistY = (mapY + 1.0 - posY) * deltaDistY; }
 
+            let hit = 0, side;
             while (hit === 0) {
                 if (sideDistX < sideDistY) { sideDistX += deltaDistX; mapX += stepX; side = 0; }
                 else { sideDistY += deltaDistY; mapY += stepY; side = 1; }
-                if (map[mapX][mapY] > 0) hit = 1;
+                if (worldMap[mapX][mapY] > 0) hit = 1;
             }
 
-            if (side === 0) perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX;
-            else            perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY;
+            let perpWallDist = (side === 0) ? (sideDistX - deltaDistX) : (sideDistY - deltaDistY);
+            zBuffer[x] = perpWallDist; // Salva para ocluir o monstro
 
-            // Guardar distância no Z-Buffer para usar no sprite depois
-            zBuffer[x] = perpWallDist;
+            let lineHeight = Math.floor(h / perpWallDist);
+            let drawStart = -lineHeight / 2 + h / 2 + pitch;
+            let drawEnd = lineHeight / 2 + h / 2 + pitch;
 
-            let lineHeight = Math.floor(height / perpWallDist);
-            let drawStart = -lineHeight / 2 + height / 2 + pitch; // Pitch aplicado
-            let drawEnd = lineHeight / 2 + height / 2 + pitch;
-
-            // Cores e Iluminação
-            // As paredes são mais escuras se forem eixo Y (efeito 3d falso)
-            let wallColor = side === 1 ? 150 : 200; 
-            
-            // Fazer a lanterna funcionar: quanto mais longe, mais escuro (Fog)
-            // Se perpWallDist for grande, brilho é 0.
-            let brightness = 1.0;
-            if(perpWallDist > 0) {
-                brightness = 3.5 / (perpWallDist * perpWallDist); // Decaimento quadrático (luz realista)
-                if(brightness > 1) brightness = 1;
-            }
-            
-            let r = Math.floor(wallColor * brightness);
-            let g = Math.floor(wallColor * brightness * 0.9); // Levemente amarelado/sujo
-            let b = Math.floor(wallColor * brightness * 0.8);
-
-            ctx.fillStyle = `rgb(${r},${g},${b})`;
+            // Cores e Sombra
+            let color = side === 1 ? 40 : 60;
+            let fog = 1 / (1 + perpWallDist * perpWallDist * 0.1);
+            ctx.fillStyle = `rgb(${color * fog}, ${color * fog * 0.8}, ${color * fog * 0.8})`;
             ctx.fillRect(x, drawStart, 1, drawEnd - drawStart);
         }
 
-        // 4. Renderizar Sprite (Monstro)
-        // Lógica de projeção de Billboard
-        let spriteX = monsterX - posX;
-        let spriteY = monsterY - posY;
-
+        // Monstro (Sprite)
+        let spriteX = enemyX - posX;
+        let spriteY = enemyY - posY;
         let invDet = 1.0 / (planeX * dirY - dirX * planeY);
-        let transformX = invDet * (dirY * spriteX - dirX * spriteY);
-        let transformY = invDet * (-planeY * spriteX + planeX * spriteY); // Distância Z (profundidade)
+        let transX = invDet * (dirY * spriteX - dirX * spriteY);
+        let transY = invDet * (-planeY * spriteX + planeX * spriteY);
 
-        if (transformY > 0.1) {
-            let spriteScreenX = Math.floor((width / 2) * (1 + transformX / transformY));
-            let spriteHeight = Math.abs(Math.floor(height / transformY)); 
-            let spriteWidth = Math.abs(Math.floor(height / transformY)); // Imagem quadrada
-            let spriteTop = -spriteHeight / 2 + height / 2 + pitch; // Pitch afeta o sprite também
+        if (transY > 0) {
+            let spriteScreenX = Math.floor((w / 2) * (1 + transX / transY));
+            let spriteH = Math.abs(Math.floor(h / transY));
+            let spriteW = Math.abs(Math.floor(h / transY));
+            let drawStartX = -spriteW / 2 + spriteScreenX;
+            let drawEndX = spriteW / 2 + spriteScreenX;
 
-            // Desenhar faixas verticais do sprite
-            // Isso permite verificar o Z-Buffer pixel a pixel (coluna a coluna)
-            for (let stripe = 0; stripe < spriteWidth; stripe++) {
-                let texX = Math.floor(stripe * 256 / spriteWidth); // Assumindo textura interna
-                let theX = Math.floor(spriteScreenX - spriteWidth / 2 + stripe);
-
-                if (transformY > 0 && theX > 0 && theX < width && transformY < zBuffer[theX]) {
-                    // O Sprite está NA FRENTE da parede
-                    // Desenha uma fatia da imagem
-                    ctx.drawImage(
-                        monsterImg, 
-                        (monsterImg.width / spriteWidth) * stripe, 0, monsterImg.width/spriteWidth, monsterImg.height, // Source
-                        theX, spriteTop, 1, spriteHeight // Destination
-                    );
+            for (let stripe = drawStartX; stripe < drawEndX; stripe++) {
+                if (stripe > 0 && stripe < w && transY < zBuffer[stripe]) {
+                    ctx.drawImage(enemyImg, stripe - drawStartX, 0, 1, spriteH, stripe, -spriteH/2 + h/2 + pitch, 1, spriteH);
                 }
             }
         }
 
-        // Efeito da lanterna (movimento leve com a "respiração")
-        let breath = Math.sin(Date.now() / 200) * 10;
-        flashlight.style.transform = `translateY(${breath}px)`;
-
-        requestAnimationFrame(gameLoop);
+        requestAnimationFrame(loop);
     }
 
-    // Resize
-    window.addEventListener('resize', () => {
-        width = window.innerWidth;
-        height = window.innerHeight;
-        canvas.width = width;
-        canvas.height = height;
-        zBuffer = new Array(width).fill(0);
-    });
+    function loop() {
+        update();
+        render();
+    }
 
-    // Iniciar loop quando carregar
-    requestAnimationFrame(gameLoop);
-
+    loop();
 </script>
 </body>
 </html>
