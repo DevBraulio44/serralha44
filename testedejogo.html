@@ -2,16 +2,23 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>DISTURBED ENGINE</title>
+    <title>DISTURBED ENGINE - 120 SECONDS</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; cursor: none; }
+        body { margin: 0; background: #000; overflow: hidden; cursor: none; font-family: 'Courier New', monospace; }
         canvas { display: block; width: 100vw; height: 100vh; }
         
-        /* Efeito de Grão/Estática */
+        /* Estilo do Timer */
+        #timer {
+            position: fixed; top: 20px; right: 20px;
+            color: #f00; font-size: 32px; font-weight: bold;
+            text-shadow: 0 0 10px #f00; z-index: 60;
+            letter-spacing: 2px; opacity: 0.7;
+        }
+
         #noise-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: url('https://media.giphy.com/media/oEI9uWUicLpsc/giphy.gif');
-            opacity: 0.08; pointer-events: none; z-index: 50; mix-blend-mode: overlay;
+            opacity: 0.1; pointer-events: none; z-index: 50; mix-blend-mode: overlay;
         }
 
         #vignette {
@@ -22,18 +29,19 @@
 
         #minimap {
             position: absolute; top: 15px; left: 15px; width: 120px; height: 120px;
-            border: 1px solid #200; background: rgba(0, 0, 0, 0.9); z-index: 30; opacity: 0.6;
+            border: 1px solid #300; background: rgba(0, 0, 0, 0.9); z-index: 30; opacity: 0.5;
         }
 
         #jumpscare-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #000; z-index: 100; align-items: center; justify-content: center;
         }
-        #jumpscare-img { width: 110%; height: 110%; object-fit: cover; filter: contrast(1.5) grayscale(0.5); }
+        #jumpscare-img { width: 110%; height: 110%; object-fit: cover; filter: contrast(1.6) invert(0.1); }
     </style>
 </head>
 <body>
 
+    <div id="timer">02:00</div>
     <div id="noise-overlay"></div>
     <canvas id="minimap"></canvas>
     <div id="vignette"></div>
@@ -51,38 +59,55 @@
     const ctx = canvas.getContext('2d');
     const mCanvas = document.getElementById('minimap');
     const mCtx = mCanvas.getContext('2d');
-    const vignette = document.getElementById('vignette');
+    const timerDisplay = document.getElementById('timer');
     
     let w = canvas.width = window.innerWidth;
     let h = canvas.height = window.innerHeight;
     mCanvas.width = 120; mCanvas.height = 120;
 
-    // --- AUDIO PERTURBADOR ---
-    let audioCtx, noiseNode, noiseGain;
-    function initDisturbedAudio() {
+    // --- LÓGICA DO TIMER ---
+    let timeLeft = 120; // 2 minutos em segundos
+    function startTimer() {
+        const countdown = setInterval(() => {
+            if (isGameOver) { clearInterval(countdown); return; }
+            
+            timeLeft--;
+            let minutes = Math.floor(timeLeft / 60);
+            let seconds = timeLeft % 60;
+            
+            // Formatação 00:00
+            timerDisplay.innerText = 
+                (minutes < 10 ? "0" + minutes : minutes) + ":" + 
+                (seconds < 10 ? "0" + seconds : seconds);
+
+            if (timeLeft <= 0) {
+                clearInterval(countdown);
+                window.location.href = "tensao.html"; // Redireciona
+            }
+        }, 1000);
+    }
+
+    // --- AUDIO ---
+    let audioCtx, noiseGain;
+    function initAudio() {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const bufferSize = 2 * audioCtx.sampleRate,
-            noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate),
-            output = noiseBuffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) { output[i] = Math.random() * 2 - 1; }
-            
-            noiseNode = audioCtx.createBufferSource();
-            noiseNode.buffer = noiseBuffer;
-            noiseNode.loop = true;
+            const bufferSize = audioCtx.sampleRate * 2,
+                  buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate),
+                  data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; }
+            const source = audioCtx.createBufferSource();
+            source.buffer = buffer; source.loop = true;
             noiseGain = audioCtx.createGain();
             const filter = audioCtx.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.value = 400;
-            
-            noiseNode.connect(filter);
-            filter.connect(noiseGain);
+            filter.type = 'lowpass'; filter.frequency.value = 300;
+            source.connect(filter); filter.connect(noiseGain);
             noiseGain.connect(audioCtx.destination);
-            noiseNode.start();
+            source.start();
         }
     }
 
-    // Mapa
+    // Mapa e Player (Mantive os mesmos da versão anterior)
     const mapSize = 16;
     const worldMap = [
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
@@ -101,12 +126,16 @@
     ];
 
     let posX = 1.5, posY = 1.5, dirX = 1, dirY = 0, planeX = 0, planeY = 0.66, pitch = 0;
-    let enemyX = 14, enemyY = 11, isGameOver = false, running = false;
+    let enemyX = 14, enemyY = 11, isGameOver = false, running = false, gameStarted = false;
     let zBuffer = new Array(w);
 
     document.addEventListener('click', () => {
-        canvas.requestPointerLock();
-        initDisturbedAudio();
+        if(!gameStarted) {
+            canvas.requestPointerLock();
+            initAudio();
+            startTimer();
+            gameStarted = true;
+        }
     });
 
     document.addEventListener('mousemove', (e) => {
@@ -127,8 +156,8 @@
     window.onkeyup = (e) => { keys[e.code] = false; if(!e.shiftKey) running = false; };
 
     function update() {
-        if (isGameOver) return;
-        let speed = running ? 0.08 : 0.045;
+        if (isGameOver || !gameStarted) return;
+        let speed = running ? 0.09 : 0.05;
         if (keys['KeyW']) {
             if (worldMap[Math.floor(posY)][Math.floor(posX + dirX * speed)] === 0) posX += dirX * speed;
             if (worldMap[Math.floor(posY + dirY * speed)][Math.floor(posX)] === 0) posY += dirY * speed;
@@ -146,36 +175,28 @@
             if (worldMap[Math.floor(posY + planeY * speed)][Math.floor(posX)] === 0) posY += planeY * speed;
         }
 
-        // --- IA ACELERADA ---
         let dx = posX - enemyX, dy = posY - enemyY, dist = Math.sqrt(dx*dx + dy*dy);
-        
-        // Se aproxima mais rápido quanto mais perto está (Aceleração Exponencial)
-        let currentEnemySpeed = 0.02 + (0.06 / (dist + 0.5)); 
+        let currentEnemySpeed = 0.025 + (0.05 / (dist + 0.4)); 
         enemyX += (dx/dist) * currentEnemySpeed;
         enemyY += (dy/dist) * currentEnemySpeed;
 
-        // Som aumenta com a proximidade
-        if(noiseGain) noiseGain.gain.value = Math.min(0.4, 0.05 + (0.3 / dist));
+        if(noiseGain) noiseGain.gain.value = Math.min(0.5, 0.05 + (0.4 / dist));
 
         if(dist < 0.35) {
             isGameOver = true;
             document.getElementById('jumpscare-overlay').style.display = 'flex';
-            if(audioCtx) { // Grito de estática pura
-                let osc = audioCtx.createOscillator();
-                let g = audioCtx.createGain();
-                osc.type = 'sawtooth'; osc.frequency.value = 100;
-                g.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.1);
-                osc.connect(g); g.connect(audioCtx.destination);
-                osc.start();
-            }
         }
     }
 
     function render() {
-        // Flicker da Lanterna
-        let flicker = Math.random() > 0.96 ? 0.5 : 1;
-        vignette.style.opacity = 0.8 + (Math.random() * 0.2);
+        if(!gameStarted) {
+            ctx.fillStyle = "black"; ctx.fillRect(0,0,w,h);
+            ctx.fillStyle = "white"; ctx.textAlign = "center";
+            ctx.fillText("CLIQUE PARA SOBREVIVER", w/2, h/2);
+            return;
+        }
 
+        let flicker = Math.random() > 0.97 ? 0.3 : 1;
         ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
 
         for (let x = 0; x < w; x++) {
@@ -193,12 +214,11 @@
             zBuffer[x] = distP;
             let lH = Math.floor(h / distP);
             let start = -lH / 2 + h / 2 + pitch, end = lH / 2 + h / 2 + pitch;
-            let lum = (side === 1 ? 0.6 : 1) * (5 / (distP + 1)) * flicker;
-            ctx.fillStyle = `rgb(${20*lum},${15*lum},${15*lum})`; // Paredes quase pretas, avermelhadas
+            let lum = (side === 1 ? 0.6 : 1) * (4.5 / (distP + 0.8)) * flicker;
+            ctx.fillStyle = `rgb(${25*lum},${10*lum},${10*lum})`;
             ctx.fillRect(x, start, 1, end - start);
         }
 
-        // Render Sprite
         let sX = enemyX - posX, sY = enemyY - posY, invD = 1/(planeX*dirY - dirX*planeY);
         let tX = invD * (dirY * sX - dirX * sY), tY = invD * (-planeY * sX + planeX * sY);
         if (tY > 0.1) {
@@ -206,19 +226,18 @@
             let dSX = Math.floor(-sW/2 + scX), dEX = Math.floor(sW/2 + scX);
             for (let i = dSX; i < dEX; i++) {
                 if (i > 0 && i < w && tY < zBuffer[i]) {
-                    ctx.globalAlpha = Math.min(1, 2/tY); // Bixo some na escuridão
                     ctx.drawImage(enemyImg, (i-dSX)*(enemyImg.width/sW), 0, 1, enemyImg.height, i, -sH/2+h/2+pitch, 1, sH);
-                    ctx.globalAlpha = 1;
                 }
             }
         }
+        
         // Minimap
         mCtx.fillStyle = "#000"; mCtx.fillRect(0,0,120,120);
-        let b = 120/mapSize;
-        mCtx.fillStyle = "#100";
-        for(let i=0; i<worldMap.length; i++) for(let j=0; j<mapSize; j++) if(worldMap[i][j]) mCtx.fillRect(j*b, i*b, b, b);
-        mCtx.fillStyle = "#0f0"; mCtx.fillRect(posX*b-1, posY*b-1, 2, 2);
-        mCtx.fillStyle = "#f00"; mCtx.fillRect(enemyX*b-1, enemyY*b-1, 2, 2);
+        let block = 120/mapSize;
+        mCtx.fillStyle = "#200";
+        for(let i=0; i<worldMap.length; i++) for(let j=0; j<mapSize; j++) if(worldMap[i][j]) mCtx.fillRect(j*block, i*block, block, block);
+        mCtx.fillStyle = "#0f0"; mCtx.fillRect(posX*block-1, posY*block-1, 3, 3);
+        mCtx.fillStyle = "#f00"; mCtx.fillRect(enemyX*block-1, enemyY*block-1, 3, 3);
     }
 
     function loop() { update(); render(); requestAnimationFrame(loop); }
