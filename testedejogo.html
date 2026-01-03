@@ -2,336 +2,381 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>O Corredor Vermelho VHS</title>
+    <title>Horror Engine 2.0</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', Courier, monospace; cursor: crosshair; }
-        #gameContainer { position: relative; width: 100%; height: 100vh; }
-        #gameCanvas { display: block; width: 100%; height: 100%; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; cursor: none; }
         
-        /* Efeito de Chiado/VHS */
-        #vhs-overlay {
+        /* Container do Jogo */
+        #game-container { position: relative; width: 100vw; height: 100vh; background: #000; }
+        
+        /* O Canvas onde o 3D é desenhado */
+        canvas { display: block; width: 100%; height: 100%; }
+
+        /* A Lanterna (Vignette) */
+        #flashlight {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; /* Permite clicar através dele */
-            opacity: 0.15;
-            background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAQAAAAAYLlVAAAAGXRFWHRTb2Z0d2FyZQBBZG9YbyBJbWFnZVJlYWR5ccllPAAAAAJ0Uk5T/wDltzBKAAAB/klEQVR42qyZYW7DIAyE82f3Lu37X2uOqgI4tptW6q6q+A0Y/C22sQ996N8t27I9nK9jG2O8XN9lW/aX+27bLtu2bN9WvK9l24b1WvbXU1q2Zf/zW3Nf/S1/187zN9659z1n/v79/h7728d7Y1v27/t92d/9tW27bMv2Lft62d/f1t6X7c+27bvsy/av17L/l997d+08/z/6r/j/8635r/39/Z7965dt7/3f191/m23bLtu2XdvXFdv3/d7c1959f3f+Fduy7f199e37tq/X3u9r/+6/Yl/bX/s+z3n1bdu/7/3f/T32t/7H3P3/t/7Hsn2/v3vX3v1b733d78959X/Hvm3bdtm2fV/77/+XbVu2bdt22bZtX3v/X9vXFdv7+n7f59f2fX/7d377e9/X87f7u3e9t2VbtmXf923bLtu2bVu2bdt22bZlX9vf+77W3teyfV/Ltm3btm3btm3bLtu2bVu2bdv+7d/f79m27bJ9l23btm3bLtu2bdu2bduyLdu27bIt27Jty/ZlX7Zt2b7Ltmzbtl22Zd+Wbdk+296X/X3/fX+7//t7977/3n1ftm3btm3bLtu27bLt2r4u27ZtX3v3fVm2ZVu2Zfve23bZtm3bLtu2bdt22bZtX9vf+76u2La/3/f1/O3+7l3vbduW/f/++tCH/t3yG14oZ9eYvjX3AAAAAElFTkSuQmCC');
-            animation: noise 0.2s infinite steps(4);
+            background: radial-gradient(circle at center, transparent 10%, rgba(0,0,0,0.8) 35%, rgba(0,0,0,1) 70%);
+            pointer-events: none;
+            mix-blend-mode: multiply;
+            z-index: 5;
         }
 
-        @keyframes noise {
-           0% { background-position: 0 0; }
-           100% { background-position: 100px 100px; }
-        }
-
-        #ui {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #0f0; font-size: 24px; text-align: center;
-            text-shadow: 0 0 5px #0f0; pointer-events: none;
-            background: rgba(0,0,0,0.7); padding: 20px; border: 2px solid #0f0;
+        /* Interface Mínima */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10; pointer-events: none;
         }
         
-        #jumpscare, #win {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: none; align-items: center; justify-content: center;
-            font-size: 5rem; font-weight: bold; z-index: 20;
+        #start-text {
+            color: #444; font-size: 20px; letter-spacing: 5px; text-transform: uppercase;
+            animation: pulse 2s infinite;
         }
-        #jumpscare { background: red; color: black; }
-        #win { background: white; color: black; }
+
+        #jumpscare-overlay {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; z-index: 20;
+            align-items: center; justify-content: center;
+        }
+        
+        #jumpscare-img {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+
+        @keyframes pulse { 0% { opacity: 0.3; } 50% { opacity: 0.8; } 100% { opacity: 0.3; } }
     </style>
 </head>
 <body>
 
-    <div id="gameContainer">
-        <canvas id="gameCanvas"></canvas>
-        <div id="vhs-overlay"></div>
-        <div id="ui" id="startScreen">
-            CLIQUE PARA INICIAR<br><br>
-            Objetivo: Encontre a parede AZUL.<br>
-            Fuja da presença VERMELHA.<br>
-            Controles: W, S para mover.<br>MOUSE para olhar.
-        </div>
-        <div id="jumpscare">TE PEGOU</div>
-        <div id="win">ESCAPOU</div>
+<div id="game-container">
+    <canvas id="screen"></canvas>
+    <div id="flashlight"></div>
+    
+    <div id="ui-layer">
+        <div id="start-text">Clique para Acordar</div>
     </div>
 
-    <audio id="ambience" loop>
-        <source type="audio/mpeg" src="data:audio/mpeg;base64,//uQZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAGAAALrgCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKAAAABhTEFNRTMuOTlyA/oAAAAALnAAACQEJEg5AAAAAAEALrgKkF8AAAAAAAAAAAAAAAAAAAAAAAD/7kmRAA7vIFZlSEAAUaQazKkIAA0w/2X4QAAByB/svwgAACB5CIBgEAgEAgEAgEAgIAf74T/+Hf74T/+GgA//+D/wAf/gD/4AIAQAAAAAEAAAB7pTj1R6P5B0Fw/g4DgeE8Hw/D8BwHk/D8eD8Q/L+f/+D/+H/8A/gAfwAH8AeDAAgAAA5kUigS35P2aD1N2wH4x8D6D/f+B/4H4EA8Hj/4+P//H///+Hg+EAAAAABgP8DweG4f4f/6f/4f/4P/8P/4f/wf/wf/4AD//gAf/8AH/AAAEAAANF6Rz/8P//6P//j//4//+P//j//4//+H//gA//+AD//wAf8AADgAAAP33r///wf//g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAAHAAAAsO66f+H///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAABAAAAzGfH/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAAKAAABzJ7//9///D/+Gf8P/4f/w//g//h//B//AAP/+AB//wAf8AAAQAAAMl///+H///h//4//+P//j//4//+P//gA//+AD//wAf8AABQAAAK56///8f//w//h//B//D/+D/+H/8H/8AA//4AH//AB/wAABAAABl/Vf/8P//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAgAAAEu7l/4f//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAAHf/X//x///p//4//+P//j//4//+P//gA//+AD//wAf8AAAgAAAEO8P/4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAABXn+P/4f//6P//j//4//+P//j//4//+AD//4AP//AB/wAAIAAAH191/8P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAAE36X//H///j//4//+P//j//4//+P//gA//+AD//wAf8AADAAAAH//4f//4f//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAAHAAABD3X/+H///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAACAAAA5//r/+H//9///j//4//+P//j//4//+AD//4AP//AB/wAAHAAABc/9/+H///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAABAAAB1/1/4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAACAAAAX7///8f//w//h//B//D/+D/+H/8H/8AA//4AH//AB/wAABAAACf/4//h///p//4//+P//j//4//+P//gA//+AD//wAf8AACgAAAX7/X/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAABf/8f/w//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAcAAAEv9f/4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAB1///+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAALAAAB//8P/4f//4P/4P/4f/wf/w//g//h//AAP/+AB//wAf8AAAQAAAK//j/8f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAsAAAH/9V/4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAABI/l//h///o//+P//j//4//+P//j//4AP//gA//8AH/AAAMAAAB3/w//g//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAAI/6//+H///j//4//+P//j//4//+P//gA//+AD//wAf8AACQAAAX//H/8f//4f/wf/w//g//h//B//D/+AAP/+AB//wAf8AAAQAAADf//+H///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAAGAAAA//8f/w//4P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAAOaP/4f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAwAAAH//4f/w//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAACv/9/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAALAAABf/9f/4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAALu8P/4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAYAAADf/X/4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAL///8f//4f/wf/w//g//h//B//D/+AAP/+AB//wAf8AABgAAAJ//r/8f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAADf///4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAwAAAG3+P/4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAN//j/+H///j//4//+P//j//4//+P//gA//+AD//wAf8AACgAAAc//j/+H///j//4//+P//j//4//+P//gA//+AD//wAf8AAAQAAAL///+H///j//4//+P//j//4//+P//gA//+AD//wAf8AACgAAAH7///8f//w//h//B//D/+D/+H/8H/8AA//4AH//AB/wAABAAAAw3///4f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAwAAALu///4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAJe//4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAAGAAAAr///+P//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAABAAAA1//j/8f//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAADAAAA//9V/8P//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAABI//h/+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAsAAAF//9/+H//+D/+D/+H/8P/4f/wf/w//gAP//gA//8AH/AAAEAAABv/x//D///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAAKAAAD///j/+H//6P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAC/v//8P//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAYAAACQ//4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAADb///+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAsAAAD///+P//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAo/r//h///o//+P//j//4//+P//j//4AP//gA//8AH/AAAwAAAI///4f//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAAALv3/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAADAAAA///X/4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAKP//+P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAoAAAH+/4//h///j//4//+P//j//4//+P//gA//+AD//wAf8AAAQAAAAN///4f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAwAAAK///8P//+D/+D/+H/8P/4f/wf/w//gAP//gA//8AH/AAAEAAAN///+P//8P/4f/wf/w//g//h//B//AAP/+AB//wAf8AACwAAAH///+P//8P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAAJ//4/8f//4f/wf/w//g//h//B//D/+AAP/+AB//wAf8AABwAAAH/9f/8f//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAABAAABt3//+H//9///j//4//+P//j//4//+AD//4AP//AB/wAALAAABP//j/+H//+P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAB7/8f/w//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAsAAAE//X/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAABf/3//h///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAADAAAAP//4f/w//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAABl/1//4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAALAAAA2///+P//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAABAAABj/9f/x///p//4//+P//j//4//+P//gA//+AD//wAf8AAAwAAABn/9/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAz/8f/4f//6P//j//4//+P//j//4//+AD//4AP//AB/wAALAAAA5/3/+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAACv/+P/4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAAHAAAAT//j/8f//6P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAB3/4//h///o//+P//j//4//+P//j//4AP//gA//8AH/AAAsAAACv/9/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAD//r/8f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAwAAAIP/1//4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAG///8P//+H//j//4//+P//j//4//+AD//4AP//AB/wAAHAAAB1///+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAP/X/8P//8P/4P/4f/wf/w//g//h//AAP/+AB//wAf8AACgAAAL//j/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAA///X/+H//+j//4//+P//j//4//+P//gA//+AD//wAf8AABgAAAD//x//D//4P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAABP/8f/w//+H//j//4//+P//j//4//+AD//4AP//AB/wAAIAAAAx/v//x///p//4//+P//j//4//+P//gA//+AD//wAf8AAAQAAAC//j/8f//6P//j//4//+P//j//4//+AD//4AP//AB/wAADAAAAv//+P/4f//6P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAG///4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAAIAAAAF///+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAAAb/9f+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAYAAACj//j/+H//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAAO//H/8P//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAAGAAAAd//X/4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAAV///+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAAKAAABQ//4f/w//4P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAAAD//+P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAYAAAB//+P/4f//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAABAAAAL///8f//6P//j//4//+P//j//4//+AD//4AP//AB/wAADAAAA//91/8f//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAABAAAAN//1//h///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAAKAAABn/9f/4f//6P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAj/3//x///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAAHAAAAv//v/8P//4f/wf/w//g//h//B//D/+AAP/+AB//wAf8AAAQAAAAv///4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAoAAAL///+P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAAAAf//h//8H/8P/4P/4f/wf/w//g//h//AAP/+AB//wAf8AACQAAAL///8f//4P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAACf/+P/4f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAoAAAKP//+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAAAz/1//4f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAsAAADf///4f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAABQ//j/8f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAYAAADf/X/+H///h//4//+P//j//4//+P//gA//+AD//wAf8AAAQAAAE/9f/8f//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAAJAAAA9/4f/w//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAA//91/8P//+H//j//4//+P//j//4//+AD//4AP//AB/wAAGAAAAv//x//D//4P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAADf//+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAsAAAB///X/x///h//4//+P//j//4//+P//gA//+AD//wAf8AAAQAAADf/3//h///h//4//+P//j//4//+P//gA//+AD//wAf8AABwAAADP///4f//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAABAAAAV///+P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAoAAAB93//+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAa/9f/8f//6P//j//4//+P//j//4//+AD//4AP//AB/wAAIAAAAO///4f//6P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAUf9V/8P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAYAAABf//j/8f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAEj/r//h///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAALAAAAo//+P/4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAB//X//x///p//4//+P//j//4//+P//gA//+AD//wAf8AABwAAAH//X//x///h//4//+P//j//4//+P//gA//+AD//wAf8AAAQAAAOaP/4f//6P//j//4//+P//j//4//+AD//4AP//AB/wAAIAAAAKP//+H//+D/+D/+H/8P/4f/wf/w//gAP//gA//8AH/AAAEAAAE3///+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAMAAABr///4f//4P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAAKf/j/8P//4P/4P/4f/wf/w//g//h//AAP/+AB//wAf8AACQAAAL///8f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAD///+P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAoAAACv/X/+H//+j//4//+P//j//4//+P//gA//+AD//wAf8AAAQAAAHv///4f//6P//j//4//+P//j//4//+AD//4AP//AB/wAAMAAAA+//r/8f//6P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAO//H/8P//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAALAAAAv//+P//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAj/3//4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAACAAAA///j/+H//6P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAd///+H///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAACAAAALv///4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAJ//v/8f//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAMAAABf///4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAB9/r/8P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAMAAAE3/X/4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAUf9f/4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAAKAAAAb/3//4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAr/9//x///p//4//+P//j//4//+P//gA//+AD//wAf8AABgAAAOaP/4f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAADf/4//4f//4P/4f/wf/w//g//h//B//AAP/+AB//wAf8AABgAAAD///8P//8P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAABX///4f//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAAGAAAAu//4//h///o//+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAGv//+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAwAAAEj/r/+H///h//4//+P//j//4//+P//gA//+AD//wAf8AAAQAAAL///+H///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAAKAAAA1//X/8P//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAp///8f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAwAAACf/X/8P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAABN///+P//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAALAAAAt3//+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAsO66f+H///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAABAAAAzGfH/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAAKAAABzJ7//9///D/+Gf8P/4f/w//g//h//B//AAP/+AB//wAf8AAAQAAAMl///+H///h//4//+P//j//4//+P//gA//+AD//wAf8AABQAAAK56///8f//w//h//B//D/+D/+H/8H/8AA//4AH//AB/wAABAAABl/Vf/8P//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAgAAAEu7l/4f//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAAHf/X//x///p//4//+P//j//4//+P//gA//+AD//wAf8AAAgAAAEO8P/4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAABXn+P/4f//6P//j//4//+P//j//4//+AD//4AP//AB/wAAIAAAH191/8P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAAE36X//H///j//4//+P//j//4//+P//gA//+AD//wAf8AADAAAAH//4f//4f//4f/4f/4f/4f/4f/4AA//4AH//AB/wAAHAAABD3X/+H///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAACAAAA5//r/+H//9///j//4//+P//j//4//+AD//4AP//AB/wAAHAAABc/9/+H///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAABAAAB1/1/4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAACAAAAX7///8f//w//h//B//D/+D/+H/8H/8AA//4AH//AB/wAABAAACf/4//h///p//4//+P//j//4//+P//gA//+AD//wAf8AACgAAAX7/X/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAABf/8f/w//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAcAAAEv9f/4f//4f/+P//j//4//+P//j//4 AP//gA//8AH/AAAEAAAB1///+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAALAAAB//8P/4f//4P/4P/4f/wf/w//g//h//AAP/+AB//wAf8AAAQAAAK//j/8f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAsAAAH/9V/4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAABI/l//h///o//+P//j//4//+P//j//4AP//gA//8AH/AAAMAAAB3/w//g//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAAI/6//+H///j//4//+P//j//4//+P//gA//+AD//wAf8AACQAAAX//H/8f//4f/wf/w//g//h//B//D/+AAP/+AB//wAf8AAAQAAADf//+H///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAAGAAAA//8f/w//4P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAAOaP/4f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAwAAAH//4f/w//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAACv/9/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAALAAABf/9f/4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAALu8P/4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAYAAADf/X/4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAL///8f//4f/wf/w//g//h//B//D/+AAP/+AB//wAf8AABgAAAJ//r/8f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAADf///4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAwAAAG3+P/4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAN//j/+H///j//4//+P//j//4//+P//gA//+AD//wAf8AACgAAAc//j/+H///j//4//+P//j//4//+P//gA//+AD//wAf8AAAQAAAL///+H///j//4//+P//j//4//+P//gA//+AD//wAf8AACgAAAH7///8f//w//h//B//D/+D/+H/8H/8AA//4AH//AB/wAABAAAAw3///4f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAwAAALu///4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAJe//4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAAGAAAAr///+P//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAABAAAA1//j/8f//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAADAAAA//9V/8P//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAABI//h/+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAsAAAF//9/+H//+D/+D/+H/8P/4f/wf/w//gAP//gA//8AH/AAAEAAABv/x//D///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAAKAAAD///j/+H//6P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAC/v//8P//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAYAAACQ//4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAADb///+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAsAAAD///+P//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAo/r//h///o//+P//j//4//+P//j//4AP//gA//8AH/AAAwAAAI///4f//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAAALv3/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAADAAAA///X/4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAKP//+P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAoAAAH+/4//h///j//4//+P//j//4//+P//gA//+AD//wAf8AAAQAAAAN///4f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAwAAAK///8P//+D/+D/+H/8P/4f/wf/w//gAP//gA//8AH/AAAEAAAN///+P//8P/4f/wf/w//g//h//B//AAP/+AB//wAf8AACwAAAH///+P//8P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAAJ//4/8f//4f/wf/w//g//h//B//D/+AAP/+AB//wAf8AABwAAAH/9f/8f//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAABAAABt3//+H//9///j//4//+P//j//4//+AD//4AP//AB/wAALAAABP//j/+H//+P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAB7/8f/w//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAsAAAE//X/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAABf/3//h///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAADAAAAP//4f/w//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAABl/1//4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAALAAAA2///+P//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAABAAABj/9f/x///p//4//+P//j//4//+P//gA//+AD//wAf8AAAwAAABn/9/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAz/8f/4f//6P//j//4//+P//j//4//+AD//4AP//AB/wAALAAAA5/3/+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAACv/+P/4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAAHAAAAT//j/8f//6P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAB3/4//h///o//+P//j//4//+P//j//4AP//gA//8AH/AAAsAAACv/9/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAD//r/8f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAwAAAIP/1//4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAG///8P//+H//j//4//+P//j//4//+AD//4AP//AB/wAAHAAAB1///+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAP/X/8P//8P/4P/4f/wf/w//g//h//AAP/+AB//wAf8AACgAAAL//j/+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAA///X/+H//+j//4//+P//j//4//+P//gA//+AD//wAf8AABgAAAD//x//D//4P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAABP/8f/w//+H//j//4//+P//j//4//+AD//4AP//AB/wAAIAAAAx/v//x///p//4//+P//j//4//+P//gA//+AD//wAf8AAAQAAAC//j/8f//6P//j//4//+P//j//4//+AD//4AP//AB/wAADAAAAv//+P/4f//6P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAG///4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAAIAAAAF///+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAAAb/9f+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAYAAACj//j/+H//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAAO//H/8P//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAAGAAAAd//X/4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAAV///+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAAKAAABQ//4f/w//4P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAAAD//+P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAYAAAB//+P/4f//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAABAAAAL///8f//6P//j//4//+P//j//4//+AD//4AP//AB/wAADAAAA//91/8f//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAABAAAAN//1//h///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAAKAAABn/9f/4f//6P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAj/3//x///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAAHAAAAv//v/8P//4f/wf/w//g//h//B//D/+AAP/+AB//wAf8AAAQAAAAv///4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAoAAAL///+P//+D/+H/8H/8P/4P/4f/wf/w AD//gAf/8AH/AAAEAAAAAf//h//8H/8P/4P/4f/wf/w//g//h//AAP/+AB//wAf8AACQAAAL///8f//4P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAACf/+P/4f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAoAAAKP//+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAEAAAAz/1//4f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAsAAADf///4f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAABQ//j/8f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAYAAADf/X/+H///h//4//+P//j//4//+P//gA//+AD//wAf8AAAQAAAE/9f/8f//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAAJAAAA9/4f/w//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAA//91/8P//+H//j//4//+P//j//4//+AD//4AP//AB/wAAGAAAAv//x//D//4P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAADf//+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAsAAAB///X/x///h//4//+P//j//4//+P//gA//+AD//wAf8AAAQAAADf/3//h///h//4//+P//j//4//+P//gA//+AD//wAf8AABwAAADP///4f//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAABAAAAV///+P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAoAAAB93//+H//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAa/9f/8f//6P//j//4//+P//j//4//+AD//4AP//AB/wAAIAAAAO///4f//6P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAUf9V/8P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAYAAABf//j/8f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAEj/r//h///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAALAAAAo//+P/4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAB//X//x///p//4//+P//j//4//+P//gA//+AD//wAf8AABwAAAH//X//x///h//4//+P//j//4//+P//gA//+AD//wAf8AAAQAAAOaP/4f//6P//j//4//+P//j//4//+AD//4AP//AB/wAAIAAAAKP//+H//+D/+D/+H/8P/4f/wf/w//gAP//gA//8AH/AAAEAAAE3///+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAMAAABr///4f//4P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAAKf/j/8P//4P/4P/4f/wf/w//g//h//AAP/+AB//wAf8AACQAAAL///8f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAD///+P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAoAAACv/X/+H//+j//4//+P//j//4//+P//gA//+AD//wAf8AAAQAAAHv///4f//6P//j//4//+P//j//4//+AD//4AP//AB/wAAMAAAA+//r/8f//6P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAO//H/8P//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAALAAAAv//+P//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAj/3//4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAACAAAA///j/+H//6P//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAd///+H///g//h//B//D/+D/+H/8H/8AA//4AH//AB/wAACAAAALv///4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAJ//v/8f//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAMAAABf///4f//4f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAB9/r/8P//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAMAAAE3/X/4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAUf9f/4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAAKAAAAb/3//4f//+H//j//4//+P//j//4//+AD//4AP//AB/wAABAAAAr/9//x///p//4//+P//j//4//+P//gA//+AD//wAf8AABgAAAOaP/4f//6f/+P//j//4//+P//j//4AP//gA//8AH/AAAEAAADf/4//4f//4P/4f/wf/w//g//h//B//AAP/+AB//wAf8AABgAAAD///8P//8P/4f/wf/w//g//h//B//AAP/+AB//wAf8AAAQAAABX///4f//4f/4f/4f/4f/4f/4f/4AA//4AH//AB/wAAGAAAAu//4//h///o//+P//j//4//+P//j//4AP//gA//8AH/AAAEAAAGv//+H//+D/+H/8H/8P/4P/4f/wf/wAD//gAf/8AH/AAAwAAAEj/r/+H///h//4//+P//j//4//+P//j//4AP//gA//8AH/AAAQAAAA"></source>
-    </audio>
+    <div id="jumpscare-overlay">
+        <img id="jumpscare-img-element" src="" />
+    </div>
+</div>
 
 <script>
-    // --- CONFIGURAÇÃO INICIAL ---
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const ui = document.getElementById('ui');
-    const audio = document.getElementById('ambience');
-    audio.volume = 0.3; // Volume do som ambiente
-
-    let w = canvas.width = window.innerWidth;
-    let h = canvas.height = window.innerHeight;
-
-    // --- ESTADO DO JOGO ---
-    // 1 = Parede, 0 = Vazio, 9 = Saída Azul
-    const mapWidth = 24;
-    const mapHeight = 24;
-    const worldMap = [
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,1,1,0,1,1,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,1],
-        [1,0,0,0,0,0,0,0,0,0,0,1,9,9,1,0,0,0,0,0,0,0,0,1],
-        [1,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,1],
-        [1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,1],
-        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,1,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1],
-        [1,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-    ];
-
-    // Variáveis do Jogador
-    let posX = 22, posY = 12; // Posição inicial
-    let dirX = -1, dirY = 0; // Vetor de direção
-    let planeX = 0, planeY = 0.66; // Plano da câmera (FOV)
-    const moveSpeed = 0.07;
-    const mouseSensitivity = 0.003; // Sensibilidade do mouse
-
-    // Variáveis do Inimigo (O Fantasma Vermelho)
-    let enemyX = 2;
-    let enemyY = 2;
-    let enemySpeed = 0.038; // Um pouco mais rápido
-    let gameOver = false;
-    let gameStarted = false;
-
-    // --- CONTROLES ---
-    const keys = { w: false, s: false };
+    // ==========================================
+    // CONFIGURAÇÃO DA IMAGEM DO MONSTRO
+    // ==========================================
     
-    // Travar o ponteiro do mouse ao clicar
-    canvas.addEventListener('click', () => {
-        if (!gameStarted) {
-            canvas.requestPointerLock();
-            ui.style.display = 'none';
-            audio.play(); // Toca o som ambiente
-            gameStarted = true;
-            requestAnimationFrame(gameLoop);
+    // ATENÇÃO: Substitua o link abaixo pelo link do seu GitHub (clique em "Raw" no github para pegar o link da imagem)
+    // Se você não mudar, vai usar uma imagem genérica assustadora.
+    const MONSTER_URL = "https://i.pinimg.com/originals/8a/7e/61/8a7e61a403067e6c4046d338bc449339.jpg"; 
+    
+    // ==========================================
+    
+    const canvas = document.getElementById('screen');
+    const ctx = canvas.getContext('2d', { alpha: false }); // Otimização
+    const startText = document.getElementById('start-text');
+    const flashlight = document.getElementById('flashlight');
+
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    // --- AUDIO SYSTEM (Web Audio API) ---
+    // Isso gera som via código, garantindo que funcione sem baixar arquivos
+    let audioCtx;
+    let droneOsc;
+    let gainNode;
+
+    function initAudio() {
+        if (!audioCtx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+            
+            // Som Ambiente (Drone Grave)
+            droneOsc = audioCtx.createOscillator();
+            droneOsc.type = 'sawtooth';
+            droneOsc.frequency.value = 50; // Baixa frequência
+
+            // Filtro para deixar o som abafado e assustador
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 120;
+
+            gainNode = audioCtx.createGain();
+            gainNode.gain.value = 0.15; // Volume baixo
+
+            droneOsc.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            droneOsc.start();
+        } else if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
         }
-    });
+    }
 
-    // Movimento do teclado
-    window.addEventListener('keydown', (e) => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true; });
-    window.addEventListener('keyup', (e) => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; });
-
-    // Movimento do mouse (rotação da câmera)
-    document.addEventListener('mousemove', (e) => {
-        if (document.pointerLockElement === canvas && !gameOver) {
-            const rotSpeed = e.movementX * mouseSensitivity;
-            let oldDirX = dirX;
-            dirX = dirX * Math.cos(rotSpeed) - dirY * Math.sin(rotSpeed);
-            dirY = oldDirX * Math.sin(rotSpeed) + dirY * Math.cos(rotSpeed);
-            let oldPlaneX = planeX;
-            planeX = planeX * Math.cos(rotSpeed) - planeY * Math.sin(rotSpeed);
-            planeY = oldPlaneX * Math.sin(rotSpeed) + planeY * Math.cos(rotSpeed);
-        }
-    });
-
-    // --- MOTOR DO JOGO (RAYCASTING) ---
-    function gameLoop() {
-        if(gameOver) return;
-        
-        // 1. Lógica
-        // Mover Inimigo (IA perseguidora simples)
-        let dx = posX - enemyX;
-        let dy = posY - enemyY;
-        let dist = Math.sqrt(dx*dx + dy*dy);
-        
-        if (dist > 0.5) {
-            // Inimigo se move através das paredes
-            enemyX += (dx / dist) * enemySpeed;
-            enemyY += (dy / dist) * enemySpeed;
-        } else {
-            // MORTE
-            document.getElementById('jumpscare').style.display = 'flex';
-            document.exitPointerLock();
-            gameOver = true;
-        }
-
-        // Mover Jogador (Apenas W/S agora)
-        if (keys.w) {
-            // Colisão simples com paredes
-            if(worldMap[Math.floor(posX + dirX * moveSpeed)][Math.floor(posY)] === 0) posX += dirX * moveSpeed;
-            if(worldMap[Math.floor(posX)][Math.floor(posY + dirY * moveSpeed)] === 0) posY += dirY * moveSpeed;
-            // Condição de Vitória
-            if(worldMap[Math.floor(posX + dirX * moveSpeed)][Math.floor(posY)] === 9) {
-                 document.getElementById('win').style.display = 'flex'; 
-                 document.exitPointerLock();
-                 gameOver = true;
+    // --- GAME ENGINE ---
+    
+    // Mapa Gigante (1 = Parede, 0 = Vazio)
+    // Um labirinto mais apertado
+    const mapSize = 32;
+    const map = [];
+    // Gerar mapa proceduralmente (bordas fechadas, pilares aleatórios)
+    for (let x = 0; x < mapSize; x++) {
+        map[x] = [];
+        for (let y = 0; y < mapSize; y++) {
+            if (x === 0 || x === mapSize - 1 || y === 0 || y === mapSize - 1) {
+                map[x][y] = 1; // Paredes externas
+            } else if (Math.random() < 0.15) { 
+                map[x][y] = 1; // Paredes aleatórias (pilares)
+            } else {
+                map[x][y] = 0; // Chão
             }
         }
-        if (keys.s) {
-            if(worldMap[Math.floor(posX - dirX * moveSpeed)][Math.floor(posY)] === 0) posX -= dirX * moveSpeed;
-            if(worldMap[Math.floor(posX)][Math.floor(posY - dirY * moveSpeed)] === 0) posY -= dirY * moveSpeed;
+    }
+    // Limpar área inicial
+    map[2][2] = 0; map[2][3] = 0; map[3][2] = 0;
+
+    // Player
+    let posX = 2.5, posY = 2.5;
+    let dirX = -1, dirY = 0;
+    let planeX = 0, planeY = 0.66;
+    let pitch = 0; // Olhar para cima/baixo
+    
+    // Controles
+    let keys = {};
+    let running = false;
+    let locked = false;
+
+    // Monstro
+    let monsterX = mapSize - 2;
+    let monsterY = mapSize - 2;
+    let monsterImg = new Image();
+    monsterImg.src = MONSTER_URL; 
+    let caught = false;
+
+    // Buffers
+    let zBuffer = new Array(width).fill(0); // Para oclusão (parede na frente do bicho)
+
+    // --- INPUTS ---
+    window.addEventListener('keydown', e => {
+        keys[e.code] = true;
+        if (e.shiftKey) running = true;
+    });
+    window.addEventListener('keyup', e => {
+        keys[e.code] = false;
+        if (!e.shiftKey) running = false;
+    });
+
+    document.addEventListener('click', () => {
+        canvas.requestPointerLock();
+        initAudio();
+        startText.style.display = 'none';
+    });
+
+    document.addEventListener('pointerlockchange', () => {
+        locked = document.pointerLockElement === canvas;
+    });
+
+    document.addEventListener('mousemove', e => {
+        if (!locked || caught) return;
+        
+        // Sensibilidade
+        const sensitivity = 0.002;
+        const pitchSensitivity = 0.8;
+
+        // Rotação (Yaw) - CORRIGIDA (Sinal invertido para ficar natural)
+        let rot = e.movementX * sensitivity;
+        let oldDirX = dirX;
+        dirX = dirX * Math.cos(rot) - dirY * Math.sin(rot);
+        dirY = oldDirX * Math.sin(rot) + dirY * Math.cos(rot);
+        let oldPlaneX = planeX;
+        planeX = planeX * Math.cos(rot) - planeY * Math.sin(rot);
+        planeY = oldPlaneX * Math.sin(rot) + planeY * Math.cos(rot);
+
+        // Olhar cima/baixo (Pitch)
+        pitch -= e.movementY * pitchSensitivity;
+        // Limitar para não quebrar o pescoço
+        if (pitch > 200) pitch = 200;
+        if (pitch < -200) pitch = -200;
+    });
+
+    // --- LOOP PRINCIPAL ---
+    function gameLoop() {
+        if (caught) return;
+
+        // 1. Movimento
+        let moveSpeed = running ? 0.08 : 0.04; // Correr ou andar
+        
+        // Colisão simples (deslizar nas paredes)
+        if (keys['KeyW']) {
+            if (map[Math.floor(posX + dirX * moveSpeed * 2)][Math.floor(posY)] === 0) posX += dirX * moveSpeed;
+            if (map[Math.floor(posX)][Math.floor(posY + dirY * moveSpeed * 2)] === 0) posY += dirY * moveSpeed;
+        }
+        if (keys['KeyS']) {
+            if (map[Math.floor(posX - dirX * moveSpeed * 2)][Math.floor(posY)] === 0) posX -= dirX * moveSpeed;
+            if (map[Math.floor(posX)][Math.floor(posY - dirY * moveSpeed * 2)] === 0) posY -= dirY * moveSpeed;
+        }
+        // Strafe (andar de lado)
+        if (keys['KeyD']) {
+            if (map[Math.floor(posX + planeX * moveSpeed * 2)][Math.floor(posY)] === 0) posX += planeX * moveSpeed;
+            if (map[Math.floor(posX)][Math.floor(posY + planeY * moveSpeed * 2)] === 0) posY += planeY * moveSpeed;
+        }
+        if (keys['KeyA']) {
+            if (map[Math.floor(posX - planeX * moveSpeed * 2)][Math.floor(posY)] === 0) posX -= planeX * moveSpeed;
+            if (map[Math.floor(posX)][Math.floor(posY - planeY * moveSpeed * 2)] === 0) posY -= planeY * moveSpeed;
         }
 
-        // 2. Renderização (Raycasting)
-        // Limpar tela (Desenhar Teto/Chão mais escuros)
-        ctx.fillStyle = "#050505"; // Teto quase preto
-        ctx.fillRect(0, 0, w, h / 2);
-        ctx.fillStyle = "#1a1a1a"; // Chão escuro
-        ctx.fillRect(0, h / 2, w, h / 2);
+        // 2. IA do Monstro
+        let distToPlayer = Math.hypot(posX - monsterX, posY - monsterY);
+        if (distToPlayer < 0.6) {
+            // JUMPSCARE
+            caught = true;
+            document.exitPointerLock();
+            const jumpOverlay = document.getElementById('jumpscare-overlay');
+            const jumpImg = document.getElementById('jumpscare-img-element');
+            jumpImg.src = MONSTER_URL; // Usa a mesma imagem
+            jumpOverlay.style.display = 'flex';
+            
+            // Som do grito (Ruído Branco alto)
+            if(audioCtx) {
+                const scream = audioCtx.createOscillator();
+                const screamGain = audioCtx.createGain();
+                scream.type = 'sawtooth';
+                scream.frequency.setValueAtTime(200, audioCtx.currentTime);
+                scream.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.5);
+                screamGain.gain.value = 0.8;
+                scream.connect(screamGain);
+                screamGain.connect(audioCtx.destination);
+                scream.start();
+                scream.stop(audioCtx.currentTime + 1);
+            }
+        } else {
+            // Perseguição lenta
+            let speed = 0.035;
+            monsterX += ((posX - monsterX) / distToPlayer) * speed;
+            monsterY += ((posY - monsterY) / distToPlayer) * speed;
+        }
 
-        for (let x = 0; x < w; x++) {
-            // Calcular posição e direção do raio
-            let cameraX = 2 * x / w - 1;
+        // 3. Renderização (Raycasting)
+        
+        // Teto e Chão
+        // Gradiente dinâmico baseado no Pitch
+        let horizon = height / 2 + pitch;
+        ctx.fillStyle = "#111"; // Teto
+        ctx.fillRect(0, 0, width, horizon);
+        ctx.fillStyle = "#222"; // Chão
+        ctx.fillRect(0, horizon, width, height - horizon);
+
+        // Paredes
+        for (let x = 0; x < width; x++) {
+            let cameraX = 2 * x / width - 1;
             let rayDirX = dirX + planeX * cameraX;
             let rayDirY = dirY + planeY * cameraX;
 
-            // Em qual quadrado do mapa estamos
             let mapX = Math.floor(posX);
             let mapY = Math.floor(posY);
 
-            // Comprimento do raio da posição atual até o próximo lado x ou y
-            let sideDistX;
-            let sideDistY;
-
-            // Comprimento do raio de um lado x ou y até o próximo
+            let sideDistX, sideDistY;
             let deltaDistX = Math.abs(1 / rayDirX);
             let deltaDistY = Math.abs(1 / rayDirY);
             let perpWallDist;
-
-            let stepX;
-            let stepY;
-
+            let stepX, stepY;
             let hit = 0;
-            let side; // Bateu em parede NS ou EW?
+            let side;
 
-            // Calcular step e sideDist inicial
-            if (rayDirX < 0) {
-                stepX = -1;
-                sideDistX = (posX - mapX) * deltaDistX;
-            } else {
-                stepX = 1;
-                sideDistX = (mapX + 1.0 - posX) * deltaDistX;
-            }
-            if (rayDirY < 0) {
-                stepY = -1;
-                sideDistY = (posY - mapY) * deltaDistY;
-            } else {
-                stepY = 1;
-                sideDistY = (mapY + 1.0 - posY) * deltaDistY;
-            }
+            if (rayDirX < 0) { stepX = -1; sideDistX = (posX - mapX) * deltaDistX; }
+            else { stepX = 1; sideDistX = (mapX + 1.0 - posX) * deltaDistX; }
+            if (rayDirY < 0) { stepY = -1; sideDistY = (posY - mapY) * deltaDistY; }
+            else { stepY = 1; sideDistY = (mapY + 1.0 - posY) * deltaDistY; }
 
-            // Algoritmo DDA
             while (hit === 0) {
-                // Pular para o próximo quadrado do mapa
-                if (sideDistX < sideDistY) {
-                    sideDistX += deltaDistX;
-                    mapX += stepX;
-                    side = 0;
-                } else {
-                    sideDistY += deltaDistY;
-                    mapY += stepY;
-                    side = 1;
-                }
-                // Verificar se o raio atingiu uma parede
-                if (worldMap[mapX][mapY] > 0) hit = 1;
+                if (sideDistX < sideDistY) { sideDistX += deltaDistX; mapX += stepX; side = 0; }
+                else { sideDistY += deltaDistY; mapY += stepY; side = 1; }
+                if (map[mapX][mapY] > 0) hit = 1;
             }
 
-            // Calcular distância projetada na direção da câmera
             if (side === 0) perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX;
             else            perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY;
 
-            // Calcular altura da linha para desenhar na tela
-            let lineHeight = Math.floor(h / perpWallDist);
+            // Guardar distância no Z-Buffer para usar no sprite depois
+            zBuffer[x] = perpWallDist;
 
-            // Calcular pixel mais baixo e mais alto para preencher na faixa atual
-            let drawStart = -lineHeight / 2 + h / 2;
-            if (drawStart < 0) drawStart = 0;
-            let drawEnd = lineHeight / 2 + h / 2;
-            if (drawEnd >= h) drawEnd = h - 1;
+            let lineHeight = Math.floor(height / perpWallDist);
+            let drawStart = -lineHeight / 2 + height / 2 + pitch; // Pitch aplicado
+            let drawEnd = lineHeight / 2 + height / 2 + pitch;
 
-            // COR & SOMBREAMENTO (Terror ++)
-            let color = "#666"; // Cor base da parede
-            if(worldMap[mapX][mapY] === 9) color = "#0000ff"; // Saída Azul
-
-            // Sombra baseada na distância (Efeito de Terror muito mais forte)
-            // A opacidade cai muito mais rápido agora.
-            let opacity = 1.0;
-            if (perpWallDist > 0.5) {
-                opacity = 1 / (perpWallDist * 1.2); // Decaimento de luz mais rápido
-                if (opacity < 0) opacity = 0;
-            }
-
-            // Paredes laterais ligeiramente mais escuras para efeito 3D
-            if (side === 1) opacity *= 0.6;
+            // Cores e Iluminação
+            // As paredes são mais escuras se forem eixo Y (efeito 3d falso)
+            let wallColor = side === 1 ? 150 : 200; 
             
-            ctx.globalAlpha = opacity;
-            ctx.fillStyle = color;
+            // Fazer a lanterna funcionar: quanto mais longe, mais escuro (Fog)
+            // Se perpWallDist for grande, brilho é 0.
+            let brightness = 1.0;
+            if(perpWallDist > 0) {
+                brightness = 3.5 / (perpWallDist * perpWallDist); // Decaimento quadrático (luz realista)
+                if(brightness > 1) brightness = 1;
+            }
+            
+            let r = Math.floor(wallColor * brightness);
+            let g = Math.floor(wallColor * brightness * 0.9); // Levemente amarelado/sujo
+            let b = Math.floor(wallColor * brightness * 0.8);
+
+            ctx.fillStyle = `rgb(${r},${g},${b})`;
             ctx.fillRect(x, drawStart, 1, drawEnd - drawStart);
-            ctx.globalAlpha = 1.0;
         }
 
-        // RENDERIZAR INIMIGO (Simulação de Sprite)
-        let spriteX = enemyX - posX;
-        let spriteY = enemyY - posY;
-        
+        // 4. Renderizar Sprite (Monstro)
+        // Lógica de projeção de Billboard
+        let spriteX = monsterX - posX;
+        let spriteY = monsterY - posY;
+
         let invDet = 1.0 / (planeX * dirY - dirX * planeY);
         let transformX = invDet * (dirY * spriteX - dirX * spriteY);
-        let transformY = invDet * (-planeY * spriteX + planeX * spriteY); 
+        let transformY = invDet * (-planeY * spriteX + planeX * spriteY); // Distância Z (profundidade)
 
-        if(transformY > 0.1) { // Só desenha se não estiver muito perto (evita glitch na cara)
-            let spriteScreenX = Math.floor((w / 2) * (1 + transformX / transformY));
-            let spriteHeight = Math.abs(Math.floor(h / transformY)); 
-            let spriteWidth = Math.abs(Math.floor(h / transformY));
-            
-            let drawStartX = -spriteWidth / 2 + spriteScreenX;
-            let drawStartY = -spriteHeight / 2 + h / 2;
+        if (transformY > 0.1) {
+            let spriteScreenX = Math.floor((width / 2) * (1 + transformX / transformY));
+            let spriteHeight = Math.abs(Math.floor(height / transformY)); 
+            let spriteWidth = Math.abs(Math.floor(height / transformY)); // Imagem quadrada
+            let spriteTop = -spriteHeight / 2 + height / 2 + pitch; // Pitch afeta o sprite também
 
-            // Desenhar o fantasma com efeito de falha
-            if (transformY < 15 && Math.random() > 0.15) { // Distância de visão e efeito de "piscar"
-                ctx.fillStyle = '#900'; // Vermelho sangue
-                
-                // Efeito de glitch mais agressivo
-                let glitchX = (Math.random() * 20 - 10) * (10/transformY);
-                let glitchH = Math.random() * spriteHeight;
+            // Desenhar faixas verticais do sprite
+            // Isso permite verificar o Z-Buffer pixel a pixel (coluna a coluna)
+            for (let stripe = 0; stripe < spriteWidth; stripe++) {
+                let texX = Math.floor(stripe * 256 / spriteWidth); // Assumindo textura interna
+                let theX = Math.floor(spriteScreenX - spriteWidth / 2 + stripe);
 
-                ctx.fillRect(drawStartX + glitchX, drawStartY + glitchH, spriteWidth, spriteHeight/4);
-                ctx.fillRect(drawStartX - glitchX, drawStartY, spriteWidth, spriteHeight);
-                
-                // Olhos brancos brilhantes
-                ctx.fillStyle = '#fff';
-                ctx.fillRect(drawStartX + spriteWidth*0.2, drawStartY + spriteHeight*0.3, spriteWidth*0.15, spriteHeight*0.15);
-                ctx.fillRect(drawStartX + spriteWidth*0.65, drawStartY + spriteHeight*0.3, spriteWidth*0.15, spriteHeight*0.15);
+                if (transformY > 0 && theX > 0 && theX < width && transformY < zBuffer[theX]) {
+                    // O Sprite está NA FRENTE da parede
+                    // Desenha uma fatia da imagem
+                    ctx.drawImage(
+                        monsterImg, 
+                        (monsterImg.width / spriteWidth) * stripe, 0, monsterImg.width/spriteWidth, monsterImg.height, // Source
+                        theX, spriteTop, 1, spriteHeight // Destination
+                    );
+                }
             }
         }
+
+        // Efeito da lanterna (movimento leve com a "respiração")
+        let breath = Math.sin(Date.now() / 200) * 10;
+        flashlight.style.transform = `translateY(${breath}px)`;
 
         requestAnimationFrame(gameLoop);
     }
 
-    // Redimensionar janela
+    // Resize
     window.addEventListener('resize', () => {
-        w = canvas.width = window.innerWidth;
-        h = canvas.height = window.innerHeight;
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+        zBuffer = new Array(width).fill(0);
     });
 
-    // Listener para quando o pointer lock é perdido (ex: alt+tab)
-    document.addEventListener('pointerlockchange', () => {
-        if(document.pointerLockElement !== canvas && gameStarted && !gameOver) {
-             ui.style.display = 'block';
-             ui.innerHTML = "CLIQUE PARA VOLTAR AO JOGO";
-             gameStarted = false;
-             audio.pause();
-        }
-    });
+    // Iniciar loop quando carregar
+    requestAnimationFrame(gameLoop);
 
 </script>
 </body>
