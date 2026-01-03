@@ -2,41 +2,39 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Horror Engine - Local File & Minimap</title>
+    <title>DISTURBED ENGINE</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', monospace; cursor: none; }
+        body { margin: 0; background: #000; overflow: hidden; cursor: none; }
         canvas { display: block; width: 100vw; height: 100vh; }
-
-        /* Estilo do Minimapa */
-        #minimap {
-            position: absolute; top: 20px; left: 20px;
-            width: 150px; height: 150px;
-            border: 2px solid #333; background: rgba(0, 0, 0, 0.8);
-            z-index: 30;
+        
+        /* Efeito de Grão/Estática */
+        #noise-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: url('https://media.giphy.com/media/oEI9uWUicLpsc/giphy.gif');
+            opacity: 0.08; pointer-events: none; z-index: 50; mix-blend-mode: overlay;
         }
 
         #vignette {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle, transparent 15%, rgba(0,0,0,0.9) 50%, black 90%);
+            background: radial-gradient(circle, transparent 10%, rgba(0,0,0,0.98) 45%, black 100%);
             pointer-events: none; z-index: 10;
         }
 
-        #ui {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #700; font-size: 18px; text-align: center; z-index: 20;
-            pointer-events: none; text-transform: uppercase; letter-spacing: 4px;
+        #minimap {
+            position: absolute; top: 15px; left: 15px; width: 120px; height: 120px;
+            border: 1px solid #200; background: rgba(0, 0, 0, 0.9); z-index: 30; opacity: 0.6;
         }
 
         #jumpscare-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: black; z-index: 100; align-items: center; justify-content: center;
+            background: #000; z-index: 100; align-items: center; justify-content: center;
         }
-        #jumpscare-img { width: 100%; height: 100%; object-fit: cover; }
+        #jumpscare-img { width: 110%; height: 110%; object-fit: cover; filter: contrast(1.5) grayscale(0.5); }
     </style>
 </head>
 <body>
 
-    <div id="ui">Aperte para Iniciar</div>
+    <div id="noise-overlay"></div>
     <canvas id="minimap"></canvas>
     <div id="vignette"></div>
     <canvas id="game"></canvas>
@@ -46,86 +44,81 @@
     </div>
 
 <script>
-    // --- CARREGAMENTO DO MONSTRO LOCAL ---
     const enemyImg = new Image();
-    enemyImg.src = "Jumpscare.png"; // Busca o arquivo local na pasta
+    enemyImg.src = "Jumpscare.png";
 
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
     const mCanvas = document.getElementById('minimap');
     const mCtx = mCanvas.getContext('2d');
-    const ui = document.getElementById('ui');
+    const vignette = document.getElementById('vignette');
     
     let w = canvas.width = window.innerWidth;
     let h = canvas.height = window.innerHeight;
-    mCanvas.width = 150;
-    mCanvas.height = 150;
+    mCanvas.width = 120; mCanvas.height = 120;
 
-    // Sistema de Áudio (Passos e Drone)
-    let audioCtx;
-    function startAudio() {
+    // --- AUDIO PERTURBADOR ---
+    let audioCtx, noiseNode, noiseGain;
+    function initDisturbedAudio() {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = 'brownian';
-            gain.gain.value = 0.05;
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
+            const bufferSize = 2 * audioCtx.sampleRate,
+            noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate),
+            output = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) { output[i] = Math.random() * 2 - 1; }
+            
+            noiseNode = audioCtx.createBufferSource();
+            noiseNode.buffer = noiseBuffer;
+            noiseNode.loop = true;
+            noiseGain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 400;
+            
+            noiseNode.connect(filter);
+            filter.connect(noiseGain);
+            noiseGain.connect(audioCtx.destination);
+            noiseNode.start();
         }
     }
 
+    // Mapa
     const mapSize = 16;
     const worldMap = [
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
-        [1,0,1,1,1,0,1,0,1,1,1,1,1,1,0,1],
-        [1,0,1,0,0,0,0,0,1,0,0,0,0,1,0,1],
-        [1,0,1,0,1,1,1,1,1,0,1,1,0,1,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,1,1,1,1,0,1,1,1,1,1,1,1,0,1],
+        [1,0,1,0,0,0,0,0,0,0,0,0,0,1,0,1],
+        [1,0,1,0,1,1,1,0,1,1,1,1,0,1,0,1],
         [1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,1],
         [1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1],
-        [1,0,0,0,0,0,1,0,1,0,0,0,1,0,0,1],
-        [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1],
+        [1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1],
+        [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,1],
         [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,1,1,1,1,1,1,1,1,0,1,1,1,0,1],
-        [1,0,1,0,0,0,0,0,0,1,0,1,0,0,0,1],
-        [1,0,1,0,1,1,1,1,0,1,0,1,0,1,1,1],
-        [1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,1],
+        [1,0,1,1,1,1,1,1,1,1,1,1,1,1,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
         [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
     ];
 
-    let posX = 1.5, posY = 1.5;
-    let dirX = 1, dirY = 0;
-    let planeX = 0, planeY = 0.66;
-    let pitch = 0;
-    let running = false;
-    let isGameOver = false;
-
-    // Monstro mais lento
-    let enemyX = 14, enemyY = 13;
-    let enemySpeed = 0.015; // Velocidade reduzida
-
+    let posX = 1.5, posY = 1.5, dirX = 1, dirY = 0, planeX = 0, planeY = 0.66, pitch = 0;
+    let enemyX = 14, enemyY = 11, isGameOver = false, running = false;
     let zBuffer = new Array(w);
 
     document.addEventListener('click', () => {
         canvas.requestPointerLock();
-        ui.style.display = 'none';
-        startAudio();
+        initDisturbedAudio();
     });
 
     document.addEventListener('mousemove', (e) => {
         if (document.pointerLockElement === canvas && !isGameOver) {
-            let rotSpeed = e.movementX * 0.0025;
+            let rot = e.movementX * 0.003;
             let oldDirX = dirX;
-            dirX = dirX * Math.cos(rotSpeed) - dirY * Math.sin(rotSpeed);
-            dirY = oldDirX * Math.sin(rotSpeed) + dirY * Math.cos(rotSpeed);
+            dirX = dirX * Math.cos(rot) - dirY * Math.sin(rot);
+            dirY = oldDirX * Math.sin(rot) + dirY * Math.cos(rot);
             let oldPlaneX = planeX;
-            planeX = planeX * Math.cos(rotSpeed) - planeY * Math.sin(rotSpeed);
-            planeY = oldPlaneX * Math.sin(rotSpeed) + planeY * Math.cos(rotSpeed);
-
-            pitch -= e.movementY * 0.8;
-            pitch = Math.max(-300, Math.min(300, pitch));
+            planeX = planeX * Math.cos(rot) - planeY * Math.sin(rot);
+            planeY = oldPlaneX * Math.sin(rot) + planeY * Math.cos(rot);
+            pitch = Math.max(-400, Math.min(400, pitch - e.movementY * 1.2));
         }
     });
 
@@ -133,129 +126,102 @@
     window.onkeydown = (e) => { keys[e.code] = true; if(e.shiftKey) running = true; };
     window.onkeyup = (e) => { keys[e.code] = false; if(!e.shiftKey) running = false; };
 
-    function drawMinimap() {
-        mCtx.fillStyle = "black";
-        mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
-        
-        const blockSize = mCanvas.width / mapSize;
-        for(let x=0; x<mapSize; x++) {
-            for(let y=0; y<worldMap.length; y++) {
-                if(worldMap[y] && worldMap[y][x] === 1) {
-                    mCtx.fillStyle = "#333";
-                    mCtx.fillRect(x*blockSize, y*blockSize, blockSize, blockSize);
-                }
-            }
-        }
-        // Jogador (Verde)
-        mCtx.fillStyle = "#0f0";
-        mCtx.fillRect(posX*blockSize - 2, posY*blockSize - 2, 4, 4);
-        // Monstro (Vermelho)
-        mCtx.fillStyle = "#f00";
-        mCtx.fillRect(enemyX*blockSize - 2, enemyY*blockSize - 2, 4, 4);
-    }
-
     function update() {
         if (isGameOver) return;
-
-        let moveSpeed = running ? 0.07 : 0.035;
-
+        let speed = running ? 0.08 : 0.045;
         if (keys['KeyW']) {
-            if (worldMap[Math.floor(posY)][Math.floor(posX + dirX * moveSpeed)] === 0) posX += dirX * moveSpeed;
-            if (worldMap[Math.floor(posY + dirY * moveSpeed)][Math.floor(posX)] === 0) posY += dirY * moveSpeed;
+            if (worldMap[Math.floor(posY)][Math.floor(posX + dirX * speed)] === 0) posX += dirX * speed;
+            if (worldMap[Math.floor(posY + dirY * speed)][Math.floor(posX)] === 0) posY += dirY * speed;
         }
         if (keys['KeyS']) {
-            if (worldMap[Math.floor(posY)][Math.floor(posX - dirX * moveSpeed)] === 0) posX -= dirX * moveSpeed;
-            if (worldMap[Math.floor(posY - dirY * moveSpeed)][Math.floor(posX)] === 0) posY -= dirY * moveSpeed;
+            if (worldMap[Math.floor(posY)][Math.floor(posX - dirX * speed)] === 0) posX -= dirX * speed;
+            if (worldMap[Math.floor(posY - dirY * speed)][Math.floor(posX)] === 0) posY -= dirY * speed;
         }
         if (keys['KeyA']) {
-            if (worldMap[Math.floor(posY)][Math.floor(posX - planeX * moveSpeed)] === 0) posX -= planeX * moveSpeed;
-            if (worldMap[Math.floor(posY - planeY * moveSpeed)][Math.floor(posX)] === 0) posY -= planeY * moveSpeed;
+            if (worldMap[Math.floor(posY)][Math.floor(posX - planeX * speed)] === 0) posX -= planeX * speed;
+            if (worldMap[Math.floor(posY - planeY * speed)][Math.floor(posX)] === 0) posY -= planeY * speed;
         }
         if (keys['KeyD']) {
-            if (worldMap[Math.floor(posY)][Math.floor(posX + planeX * moveSpeed)] === 0) posX += planeX * moveSpeed;
-            if (worldMap[Math.floor(posY + planeY * moveSpeed)][Math.floor(posX)] === 0) posY += planeY * moveSpeed;
+            if (worldMap[Math.floor(posY)][Math.floor(posX + planeX * speed)] === 0) posX += planeX * speed;
+            if (worldMap[Math.floor(posY + planeY * speed)][Math.floor(posX)] === 0) posY += planeY * speed;
         }
 
-        // Movimento do Monstro
-        let dx = posX - enemyX;
-        let dy = posY - enemyY;
-        let dist = Math.sqrt(dx*dx + dy*dy);
-        if(dist < 0.45) {
+        // --- IA ACELERADA ---
+        let dx = posX - enemyX, dy = posY - enemyY, dist = Math.sqrt(dx*dx + dy*dy);
+        
+        // Se aproxima mais rápido quanto mais perto está (Aceleração Exponencial)
+        let currentEnemySpeed = 0.02 + (0.06 / (dist + 0.5)); 
+        enemyX += (dx/dist) * currentEnemySpeed;
+        enemyY += (dy/dist) * currentEnemySpeed;
+
+        // Som aumenta com a proximidade
+        if(noiseGain) noiseGain.gain.value = Math.min(0.4, 0.05 + (0.3 / dist));
+
+        if(dist < 0.35) {
             isGameOver = true;
             document.getElementById('jumpscare-overlay').style.display = 'flex';
-            return;
+            if(audioCtx) { // Grito de estática pura
+                let osc = audioCtx.createOscillator();
+                let g = audioCtx.createGain();
+                osc.type = 'sawtooth'; osc.frequency.value = 100;
+                g.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.1);
+                osc.connect(g); g.connect(audioCtx.destination);
+                osc.start();
+            }
         }
-        enemyX += (dx/dist) * enemySpeed;
-        enemyY += (dy/dist) * enemySpeed;
     }
 
     function render() {
-        ctx.fillStyle = "#020202"; ctx.fillRect(0, 0, w, h/2 + pitch);
-        ctx.fillStyle = "#050505"; ctx.fillRect(0, h/2 + pitch, w, h/2 - pitch);
+        // Flicker da Lanterna
+        let flicker = Math.random() > 0.96 ? 0.5 : 1;
+        vignette.style.opacity = 0.8 + (Math.random() * 0.2);
+
+        ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
 
         for (let x = 0; x < w; x++) {
-            let cameraX = 2 * x / w - 1;
-            let rayDirX = dirX + planeX * cameraX;
-            let rayDirY = dirY + planeY * cameraX;
-            let mapX = Math.floor(posX);
-            let mapY = Math.floor(posY);
-            let deltaDistX = Math.abs(1 / rayDirX);
-            let deltaDistY = Math.abs(1 / rayDirY);
-            let stepX, stepY, sideDistX, sideDistY;
-
-            if (rayDirX < 0) { stepX = -1; sideDistX = (posX - mapX) * deltaDistX; }
-            else { stepX = 1; sideDistX = (mapX + 1.0 - posX) * deltaDistX; }
-            if (rayDirY < 0) { stepY = -1; sideDistY = (posY - mapY) * deltaDistY; }
-            else { stepY = 1; sideDistY = (mapY + 1.0 - posY) * deltaDistY; }
-
+            let camX = 2 * x / w - 1, rDX = dirX + planeX * camX, rDY = dirY + planeY * camX;
+            let mX = Math.floor(posX), mY = Math.floor(posY);
+            let dDX = Math.abs(1/rDX), dDY = Math.abs(1/rDY), sX, sY, sDX, sDY;
+            if (rDX < 0) { sX = -1; sDX = (posX - mX) * dDX; } else { sX = 1; sDX = (mX + 1 - posX) * dDX; }
+            if (rDY < 0) { sY = -1; sDY = (posY - mY) * dDY; } else { sY = 1; sDY = (mY + 1 - posY) * dDY; }
             let hit = 0, side;
             while (hit === 0) {
-                if (sideDistX < sideDistY) { sideDistX += deltaDistX; mapX += stepX; side = 0; }
-                else { sideDistY += deltaDistY; mapY += stepY; side = 1; }
-                if (worldMap[mapY] && worldMap[mapY][mapX] > 0) hit = 1;
+                if (sDX < sDY) { sDX += dDX; mX += sX; side = 0; } else { sDY += dDY; mY += sY; side = 1; }
+                if (worldMap[mY][mX] > 0) hit = 1;
             }
-
-            let perpWallDist = (side === 0) ? (sideDistX - deltaDistX) : (sideDistY - deltaDistY);
-            zBuffer[x] = perpWallDist;
-
-            let lineHeight = Math.floor(h / perpWallDist);
-            let drawStart = Math.max(0, -lineHeight / 2 + h / 2 + pitch);
-            let drawEnd = Math.min(h, lineHeight / 2 + h / 2 + pitch);
-
-            let color = side === 1 ? 70 : 100;
-            let fog = Math.min(1, 4 / (perpWallDist + 0.1)); // Lanterna levemente mais forte
-            ctx.fillStyle = `rgb(${color * fog}, ${color * fog}, ${color * fog})`;
-            ctx.fillRect(x, drawStart, 1, drawEnd - drawStart);
+            let distP = (side === 0) ? (sDX - dDX) : (sDY - dDY);
+            zBuffer[x] = distP;
+            let lH = Math.floor(h / distP);
+            let start = -lH / 2 + h / 2 + pitch, end = lH / 2 + h / 2 + pitch;
+            let lum = (side === 1 ? 0.6 : 1) * (5 / (distP + 1)) * flicker;
+            ctx.fillStyle = `rgb(${20*lum},${15*lum},${15*lum})`; // Paredes quase pretas, avermelhadas
+            ctx.fillRect(x, start, 1, end - start);
         }
 
-        // Render Monstro
-        let spriteX = enemyX - posX;
-        let spriteY = enemyY - posY;
-        let invDet = 1.0 / (planeX * dirY - dirX * planeY);
-        let transX = invDet * (dirY * spriteX - dirX * spriteY);
-        let transY = invDet * (-planeY * spriteX + planeX * spriteY);
-
-        if (transY > 0.1) {
-            let spriteScreenX = Math.floor((w / 2) * (1 + transX / transY));
-            let spriteH = Math.abs(Math.floor(h / transY));
-            let spriteW = Math.abs(Math.floor(h / transY));
-            let drawStartX = Math.floor(-spriteW / 2 + spriteScreenX);
-            let drawEndX = Math.floor(spriteW / 2 + spriteScreenX);
-
-            for (let stripe = drawStartX; stripe < drawEndX; stripe++) {
-                if (stripe > 0 && stripe < w && transY < zBuffer[stripe]) {
-                    ctx.drawImage(enemyImg, (stripe - drawStartX) * (enemyImg.width / spriteW), 0, 1, enemyImg.height, stripe, -spriteH/2 + h/2 + pitch, 1, spriteH);
+        // Render Sprite
+        let sX = enemyX - posX, sY = enemyY - posY, invD = 1/(planeX*dirY - dirX*planeY);
+        let tX = invD * (dirY * sX - dirX * sY), tY = invD * (-planeY * sX + planeX * sY);
+        if (tY > 0.1) {
+            let scX = Math.floor((w/2)*(1+tX/tY)), sH = Math.abs(Math.floor(h/tY)), sW = Math.abs(Math.floor(h/tY));
+            let dSX = Math.floor(-sW/2 + scX), dEX = Math.floor(sW/2 + scX);
+            for (let i = dSX; i < dEX; i++) {
+                if (i > 0 && i < w && tY < zBuffer[i]) {
+                    ctx.globalAlpha = Math.min(1, 2/tY); // Bixo some na escuridão
+                    ctx.drawImage(enemyImg, (i-dSX)*(enemyImg.width/sW), 0, 1, enemyImg.height, i, -sH/2+h/2+pitch, 1, sH);
+                    ctx.globalAlpha = 1;
                 }
             }
         }
-        drawMinimap();
+        // Minimap
+        mCtx.fillStyle = "#000"; mCtx.fillRect(0,0,120,120);
+        let b = 120/mapSize;
+        mCtx.fillStyle = "#100";
+        for(let i=0; i<worldMap.length; i++) for(let j=0; j<mapSize; j++) if(worldMap[i][j]) mCtx.fillRect(j*b, i*b, b, b);
+        mCtx.fillStyle = "#0f0"; mCtx.fillRect(posX*b-1, posY*b-1, 2, 2);
+        mCtx.fillStyle = "#f00"; mCtx.fillRect(enemyX*b-1, enemyY*b-1, 2, 2);
     }
 
-    function loop() {
-        update();
-        render();
-        requestAnimationFrame(loop);
-    }
+    function loop() { update(); render(); requestAnimationFrame(loop); }
     loop();
 </script>
 </body>
