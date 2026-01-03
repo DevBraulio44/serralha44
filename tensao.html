@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Are You Truly With Someone?</title>
+    <style>
+        body {
+            margin: 0; padding: 0; overflow: hidden;
+            background-color: #050505;
+            color: #d00;
+            font-family: 'Creepster', cursive; /* Fonte mais macabra */
+            cursor: none; /* Cursor some para usar a mira customizada */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+            position: relative;
+        }
+
+        /* Importa uma fonte assustadora do Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Creepster&display=swap');
+
+        #main-message {
+            font-size: 5vw; /* Tamanho responsivo */
+            margin-bottom: 5vh;
+            animation: pulse-red 2s infinite alternate, glitch 0.5s infinite;
+            position: relative;
+            z-index: 2;
+            filter: drop-shadow(0 0 5px #f00);
+        }
+
+        /* Efeito de glitch na mensagem */
+        @keyframes glitch {
+            0% { transform: translate(0, 0); opacity: 1; }
+            20% { transform: translate(-2px, 2px); opacity: 0.8; }
+            40% { transform: translate(2px, -2px); opacity: 1; }
+            60% { transform: translate(-1px, 1px); opacity: 0.9; }
+            80% { transform: translate(1px, -1px); opacity: 1; }
+            100% { transform: translate(0, 0); opacity: 0.7; }
+        }
+
+        #rotating-object {
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, #ff0000 0%, #8b0000 50%, #440000 100%);
+            border-radius: 50%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotateY(0deg);
+            animation: rotate-macabre 10s infinite linear, pulse-orb 1.5s infinite alternate;
+            box-shadow: 0 0 30px 10px rgba(255, 0, 0, 0.5);
+            z-index: 1;
+        }
+
+        @keyframes rotate-macabre {
+            from { transform: translate(-50%, -50%) rotateY(0deg) rotateX(0deg); }
+            to { transform: translate(-50%, -50%) rotateY(360deg) rotateX(180deg); }
+        }
+
+        @keyframes pulse-orb {
+            from { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            to { transform: translate(-50%, -50%) scale(1.05); opacity: 0.9; }
+        }
+
+        /* Área secreta para revelar a arma */
+        #secret-trigger {
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: 50px; /* Tamanho pequeno para ser sutil */
+            height: 50px;
+            background: transparent; /* Invisível */
+            z-index: 10;
+        }
+
+        #hidden-block-container {
+            position: fixed;
+            bottom: -300px; /* Escondido fora da tela */
+            right: 0;
+            width: 200px;
+            height: 300px;
+            background-color: #333;
+            border: 2px solid #111;
+            box-shadow: inset 0 0 15px #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: bottom 0.5s ease-out; /* Animação de queda */
+            z-index: 9;
+        }
+
+        #hidden-block-container.visible {
+            bottom: 0; /* Despenca para a tela */
+        }
+
+        #gun-img {
+            width: 80%;
+            height: auto;
+            display: none; /* Escondida inicialmente */
+            cursor: pointer;
+            filter: grayscale(100%) brightness(0.8) contrast(1.2); /* Estilo de arma velha */
+        }
+
+        /* Mira personalizada */
+        #crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 15px;
+            height: 15px;
+            border: 1px solid rgba(255, 0, 0, 0.7);
+            border-radius: 50%;
+            pointer-events: none; /* Não bloqueia cliques */
+            z-index: 100;
+            display: none; /* Escondida até ter a arma */
+            box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+        }
+
+        /* Arma no canto inferior direito quando ativa */
+        #active-gun {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 150px;
+            height: auto;
+            z-index: 99;
+            display: none; /* Escondida até ser equipada */
+            pointer-events: none; /* Não bloqueia cliques */
+            filter: grayscale(100%) brightness(0.8) contrast(1.2);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="main-message">Are you truly with someone?</div>
+    <div id="rotating-object"></div>
+
+    <div id="secret-trigger"></div>
+    <div id="hidden-block-container">
+        <img id="gun-img" src="Gun.png" alt="Gun">
+    </div>
+
+    <div id="crosshair"></div>
+    <img id="active-gun" src="Gun.png" alt="Active Gun">
+
+    <audio id="inferno-sound" preload="auto">
+        </audio>
+
+    <script>
+        const secretTrigger = document.getElementById('secret-trigger');
+        const hiddenBlockContainer = document.getElementById('hidden-block-container');
+        const gunImg = document.getElementById('gun-img');
+        const crosshair = document.getElementById('crosshair');
+        const activeGun = document.getElementById('active-gun');
+        const rotatingObject = document.getElementById('rotating-object');
+
+        let hasGun = false;
+
+        // --- ÁUDIO DO INFERNO (Gerado via Web Audio API) ---
+        let audioCtx;
+        function playInfernoSound() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+
+            // Configuração do som perturbador
+            osc1.type = 'sawtooth';
+            osc1.frequency.setValueAtTime(50, audioCtx.currentTime); // Baixo
+            osc1.frequency.exponentialRampToValueAtTime(1500, audioCtx.currentTime + 1); // Sobe rápido
+            
+            osc2.type = 'square';
+            osc2.frequency.setValueAtTime(100, audioCtx.currentTime); // Mais alto
+            osc2.frequency.exponentialRampToValueAtTime(2000, audioCtx.currentTime + 1.2); // Sobe mais rápido
+
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(800, audioCtx.currentTime);
+            filter.Q.setValueAtTime(10, audioCtx.currentTime); // Ressonância
+
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0.7, audioCtx.currentTime + 0.1); // Ataque rápido
+            gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 2); // Decay
+
+            osc1.connect(filter);
+            osc2.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            osc1.start();
+            osc2.start();
+            osc1.stop(audioCtx.currentTime + 2);
+            osc2.stop(audioCtx.currentTime + 2.2);
+        }
+
+        // --- LÓGICA DO JOGO ---
+        secretTrigger.addEventListener('click', () => {
+            hiddenBlockContainer.classList.add('visible');
+            gunImg.style.display = 'block'; // Mostra a arma dentro do bloco
+        });
+
+        gunImg.addEventListener('click', () => {
+            hasGun = true;
+            gunImg.style.display = 'none'; // Esconde a arma do bloco
+            hiddenBlockContainer.style.display = 'none'; // Esconde o bloco
+            crosshair.style.display = 'block'; // Mostra a mira
+            activeGun.style.display = 'block'; // Mostra a arma ativa no canto
+            document.body.style.cursor = 'none'; // Garante que o cursor do sistema sumiu
+        });
+
+        // Evento de clique no corpo para atirar com a mira
+        document.body.addEventListener('click', (e) => {
+            if (hasGun) {
+                const rect = rotatingObject.getBoundingClientRect();
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
+
+                // Verifica se o clique está dentro do objeto giratório
+                if (
+                    mouseX >= rect.left &&
+                    mouseX <= rect.right &&
+                    mouseY >= rect.top &&
+                    mouseY <= rect.bottom
+                ) {
+                    playInfernoSound();
+                    // Pequeno atraso para o som tocar antes de redirecionar
+                    setTimeout(() => {
+                        window.location.href = "fim.html";
+                    }, 1500); // 1.5 segundos
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+```http://googleusercontent.com/image_generation_content/0
