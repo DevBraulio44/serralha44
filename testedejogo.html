@@ -2,21 +2,28 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Horror Engine - Corrigido</title>
+    <title>Horror Engine - Local File & Minimap</title>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', monospace; cursor: none; }
-        canvas { display: block; width: 100vw; height: 100vh; filter: contrast(1.2) brightness(0.8); }
+        canvas { display: block; width: 100vw; height: 100vh; }
 
-        /* Máscara da Lanterna */
+        /* Estilo do Minimapa */
+        #minimap {
+            position: absolute; top: 20px; left: 20px;
+            width: 150px; height: 150px;
+            border: 2px solid #333; background: rgba(0, 0, 0, 0.8);
+            z-index: 30;
+        }
+
         #vignette {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle, transparent 5%, rgba(0,0,0,0.95) 40%, black 80%);
+            background: radial-gradient(circle, transparent 15%, rgba(0,0,0,0.9) 50%, black 90%);
             pointer-events: none; z-index: 10;
         }
 
         #ui {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            color: #500; font-size: 18px; text-align: center; z-index: 20;
+            color: #700; font-size: 18px; text-align: center; z-index: 20;
             pointer-events: none; text-transform: uppercase; letter-spacing: 4px;
         }
 
@@ -29,84 +36,78 @@
 </head>
 <body>
 
-    <div id="ui">Clique para abrir os olhos</div>
+    <div id="ui">Aperte para Iniciar</div>
+    <canvas id="minimap"></canvas>
     <div id="vignette"></div>
     <canvas id="game"></canvas>
     
     <div id="jumpscare-overlay">
-        <img id="jumpscare-img" src="" />
+        <img id="jumpscare-img" src="Jumpscare.png" />
     </div>
 
 <script>
-    // --- CONFIGURAÇÃO DO MONSTRO ---
-    // Substitua pelo link 'Raw' do seu Jumpscare.png no GitHub
-    const MONSTER_URL = "https://i.pinimg.com/originals/8a/7e/61/8a7e61a403067e6c4046d338bc449339.jpg";
+    // --- CARREGAMENTO DO MONSTRO LOCAL ---
+    const enemyImg = new Image();
+    enemyImg.src = "Jumpscare.png"; // Busca o arquivo local na pasta
 
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
+    const mCanvas = document.getElementById('minimap');
+    const mCtx = mCanvas.getContext('2d');
     const ui = document.getElementById('ui');
     
     let w = canvas.width = window.innerWidth;
     let h = canvas.height = window.innerHeight;
+    mCanvas.width = 150;
+    mCanvas.height = 150;
 
-    // Configurações de Áudio (Drone)
+    // Sistema de Áudio (Passos e Drone)
     let audioCtx;
     function startAudio() {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            const filter = audioCtx.createBiquadFilter();
-            osc.type = 'brownian'; // Ruído marrom é mais abafado e assustador
-            osc.frequency.value = 40;
-            filter.type = 'lowpass';
-            filter.frequency.value = 100;
-            gain.gain.value = 0.1;
-            osc.connect(filter);
-            filter.connect(gain);
+            osc.type = 'brownian';
+            gain.gain.value = 0.05;
+            osc.connect(gain);
             gain.connect(audioCtx.destination);
             osc.start();
         }
     }
 
-    // Mapa Estreito (1 = Parede, 0 = Caminho)
-    const mapSize = 24;
+    const mapSize = 16;
     const worldMap = [
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-        [1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,1,0,1,0,1,1,1,1,0,1,0,1,1,1,1,1,1,1,1,1,0,1],
-        [1,0,1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,1],
-        [1,0,1,1,1,1,1,0,1,1,1,1,1,1,1,0,1,0,1,1,0,1,0,1],
-        [1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,1],
-        [1,1,1,1,1,1,1,0,1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,1],
-        [1,0,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,1,0,0,1],
-        [1,0,1,1,1,0,1,1,1,1,1,0,1,1,1,0,1,1,1,1,1,0,1,1],
-        [1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1],
-        [1,0,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,0,1],
-        [1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1],
-        [1,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1],
-        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1],
-        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+        [1,0,1,1,1,0,1,0,1,1,1,1,1,1,0,1],
+        [1,0,1,0,0,0,0,0,1,0,0,0,0,1,0,1],
+        [1,0,1,0,1,1,1,1,1,0,1,1,0,1,0,1],
+        [1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,1],
+        [1,1,1,0,1,0,1,1,1,0,1,0,1,1,1,1],
+        [1,0,0,0,0,0,1,0,1,0,0,0,1,0,0,1],
+        [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,1,1,1,1,1,1,1,1,0,1,1,1,0,1],
+        [1,0,1,0,0,0,0,0,0,1,0,1,0,0,0,1],
+        [1,0,1,0,1,1,1,1,0,1,0,1,0,1,1,1],
+        [1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
     ];
 
-    // Player
     let posX = 1.5, posY = 1.5;
     let dirX = 1, dirY = 0;
     let planeX = 0, planeY = 0.66;
-    let pitch = 0; // Olhar cima/baixo
+    let pitch = 0;
     let running = false;
-
-    // Inimigo
-    let enemyX = 15, enemyY = 15;
-    const enemyImg = new Image();
-    enemyImg.src = MONSTER_URL;
-
-    let zBuffer = new Array(w);
     let isGameOver = false;
 
-    // --- CONTROLES MOUSE (SEM INVERSÃO) ---
+    // Monstro mais lento
+    let enemyX = 14, enemyY = 13;
+    let enemySpeed = 0.015; // Velocidade reduzida
+
+    let zBuffer = new Array(w);
+
     document.addEventListener('click', () => {
         canvas.requestPointerLock();
         ui.style.display = 'none';
@@ -115,8 +116,7 @@
 
     document.addEventListener('mousemove', (e) => {
         if (document.pointerLockElement === canvas && !isGameOver) {
-            // ROTAÇÃO LATERAL (X) - SINAL POSITIVO PARA NÃO INVERTER
-            let rotSpeed = e.movementX * 0.002;
+            let rotSpeed = e.movementX * 0.0025;
             let oldDirX = dirX;
             dirX = dirX * Math.cos(rotSpeed) - dirY * Math.sin(rotSpeed);
             dirY = oldDirX * Math.sin(rotSpeed) + dirY * Math.cos(rotSpeed);
@@ -124,9 +124,8 @@
             planeX = planeX * Math.cos(rotSpeed) - planeY * Math.sin(rotSpeed);
             planeY = oldPlaneX * Math.sin(rotSpeed) + planeY * Math.cos(rotSpeed);
 
-            // OLHAR CIMA/BAIXO (Y) - SINAL NEGATIVO PARA NÃO INVERTER
             pitch -= e.movementY * 0.8;
-            pitch = Math.max(-250, Math.min(250, pitch)); // Trava o pescoço
+            pitch = Math.max(-300, Math.min(300, pitch));
         }
     });
 
@@ -134,59 +133,74 @@
     window.onkeydown = (e) => { keys[e.code] = true; if(e.shiftKey) running = true; };
     window.onkeyup = (e) => { keys[e.code] = false; if(!e.shiftKey) running = false; };
 
+    function drawMinimap() {
+        mCtx.fillStyle = "black";
+        mCtx.fillRect(0, 0, mCanvas.width, mCanvas.height);
+        
+        const blockSize = mCanvas.width / mapSize;
+        for(let x=0; x<mapSize; x++) {
+            for(let y=0; y<worldMap.length; y++) {
+                if(worldMap[y] && worldMap[y][x] === 1) {
+                    mCtx.fillStyle = "#333";
+                    mCtx.fillRect(x*blockSize, y*blockSize, blockSize, blockSize);
+                }
+            }
+        }
+        // Jogador (Verde)
+        mCtx.fillStyle = "#0f0";
+        mCtx.fillRect(posX*blockSize - 2, posY*blockSize - 2, 4, 4);
+        // Monstro (Vermelho)
+        mCtx.fillStyle = "#f00";
+        mCtx.fillRect(enemyX*blockSize - 2, enemyY*blockSize - 2, 4, 4);
+    }
+
     function update() {
         if (isGameOver) return;
 
-        let moveSpeed = running ? 0.08 : 0.04;
+        let moveSpeed = running ? 0.07 : 0.035;
 
         if (keys['KeyW']) {
-            if (worldMap[Math.floor(posX + dirX * moveSpeed)][Math.floor(posY)] === 0) posX += dirX * moveSpeed;
-            if (worldMap[Math.floor(posX)][Math.floor(posY + dirY * moveSpeed)] === 0) posY += dirY * moveSpeed;
+            if (worldMap[Math.floor(posY)][Math.floor(posX + dirX * moveSpeed)] === 0) posX += dirX * moveSpeed;
+            if (worldMap[Math.floor(posY + dirY * moveSpeed)][Math.floor(posX)] === 0) posY += dirY * moveSpeed;
         }
         if (keys['KeyS']) {
-            if (worldMap[Math.floor(posX - dirX * moveSpeed)][Math.floor(posY)] === 0) posX -= dirX * moveSpeed;
-            if (worldMap[Math.floor(posX)][Math.floor(posY - dirY * moveSpeed)] === 0) posY -= dirY * moveSpeed;
+            if (worldMap[Math.floor(posY)][Math.floor(posX - dirX * moveSpeed)] === 0) posX -= dirX * moveSpeed;
+            if (worldMap[Math.floor(posY - dirY * moveSpeed)][Math.floor(posX)] === 0) posY -= dirY * moveSpeed;
         }
-        if (keys['KeyA']) { // Strafe Left
-            if (worldMap[Math.floor(posX - planeX * moveSpeed)][Math.floor(posY)] === 0) posX -= planeX * moveSpeed;
-            if (worldMap[Math.floor(posX)][Math.floor(posY - planeY * moveSpeed)] === 0) posY -= planeY * moveSpeed;
+        if (keys['KeyA']) {
+            if (worldMap[Math.floor(posY)][Math.floor(posX - planeX * moveSpeed)] === 0) posX -= planeX * moveSpeed;
+            if (worldMap[Math.floor(posY - planeY * moveSpeed)][Math.floor(posX)] === 0) posY -= planeY * moveSpeed;
         }
-        if (keys['KeyD']) { // Strafe Right
-            if (worldMap[Math.floor(posX + planeX * moveSpeed)][Math.floor(posY)] === 0) posX += planeX * moveSpeed;
-            if (worldMap[Math.floor(posX)][Math.floor(posY + planeY * moveSpeed)] === 0) posY += planeY * moveSpeed;
+        if (keys['KeyD']) {
+            if (worldMap[Math.floor(posY)][Math.floor(posX + planeX * moveSpeed)] === 0) posX += planeX * moveSpeed;
+            if (worldMap[Math.floor(posY + planeY * moveSpeed)][Math.floor(posX)] === 0) posY += planeY * moveSpeed;
         }
 
-        // IA do Bicho
+        // Movimento do Monstro
         let dx = posX - enemyX;
         let dy = posY - enemyY;
         let dist = Math.sqrt(dx*dx + dy*dy);
-        if(dist < 0.4) {
+        if(dist < 0.45) {
             isGameOver = true;
             document.getElementById('jumpscare-overlay').style.display = 'flex';
-            document.getElementById('jumpscare-img').src = MONSTER_URL;
             return;
         }
-        enemyX += (dx/dist) * 0.035;
-        enemyY += (dy/dist) * 0.035;
+        enemyX += (dx/dist) * enemySpeed;
+        enemyY += (dy/dist) * enemySpeed;
     }
 
     function render() {
-        // Limpar tela (Chão e Teto)
-        ctx.fillStyle = "#050505"; ctx.fillRect(0, 0, w, h/2 + pitch);
-        ctx.fillStyle = "#0a0a0a"; ctx.fillRect(0, h/2 + pitch, w, h/2 - pitch);
+        ctx.fillStyle = "#020202"; ctx.fillRect(0, 0, w, h/2 + pitch);
+        ctx.fillStyle = "#050505"; ctx.fillRect(0, h/2 + pitch, w, h/2 - pitch);
 
-        // Paredes (Raycasting)
         for (let x = 0; x < w; x++) {
             let cameraX = 2 * x / w - 1;
             let rayDirX = dirX + planeX * cameraX;
             let rayDirY = dirY + planeY * cameraX;
-
             let mapX = Math.floor(posX);
             let mapY = Math.floor(posY);
-
             let deltaDistX = Math.abs(1 / rayDirX);
             let deltaDistY = Math.abs(1 / rayDirY);
-            
             let stepX, stepY, sideDistX, sideDistY;
 
             if (rayDirX < 0) { stepX = -1; sideDistX = (posX - mapX) * deltaDistX; }
@@ -198,52 +212,50 @@
             while (hit === 0) {
                 if (sideDistX < sideDistY) { sideDistX += deltaDistX; mapX += stepX; side = 0; }
                 else { sideDistY += deltaDistY; mapY += stepY; side = 1; }
-                if (worldMap[mapX][mapY] > 0) hit = 1;
+                if (worldMap[mapY] && worldMap[mapY][mapX] > 0) hit = 1;
             }
 
             let perpWallDist = (side === 0) ? (sideDistX - deltaDistX) : (sideDistY - deltaDistY);
-            zBuffer[x] = perpWallDist; // Salva para ocluir o monstro
+            zBuffer[x] = perpWallDist;
 
             let lineHeight = Math.floor(h / perpWallDist);
-            let drawStart = -lineHeight / 2 + h / 2 + pitch;
-            let drawEnd = lineHeight / 2 + h / 2 + pitch;
+            let drawStart = Math.max(0, -lineHeight / 2 + h / 2 + pitch);
+            let drawEnd = Math.min(h, lineHeight / 2 + h / 2 + pitch);
 
-            // Cores e Sombra
-            let color = side === 1 ? 40 : 60;
-            let fog = 1 / (1 + perpWallDist * perpWallDist * 0.1);
-            ctx.fillStyle = `rgb(${color * fog}, ${color * fog * 0.8}, ${color * fog * 0.8})`;
+            let color = side === 1 ? 70 : 100;
+            let fog = Math.min(1, 4 / (perpWallDist + 0.1)); // Lanterna levemente mais forte
+            ctx.fillStyle = `rgb(${color * fog}, ${color * fog}, ${color * fog})`;
             ctx.fillRect(x, drawStart, 1, drawEnd - drawStart);
         }
 
-        // Monstro (Sprite)
+        // Render Monstro
         let spriteX = enemyX - posX;
         let spriteY = enemyY - posY;
         let invDet = 1.0 / (planeX * dirY - dirX * planeY);
         let transX = invDet * (dirY * spriteX - dirX * spriteY);
         let transY = invDet * (-planeY * spriteX + planeX * spriteY);
 
-        if (transY > 0) {
+        if (transY > 0.1) {
             let spriteScreenX = Math.floor((w / 2) * (1 + transX / transY));
             let spriteH = Math.abs(Math.floor(h / transY));
             let spriteW = Math.abs(Math.floor(h / transY));
-            let drawStartX = -spriteW / 2 + spriteScreenX;
-            let drawEndX = spriteW / 2 + spriteScreenX;
+            let drawStartX = Math.floor(-spriteW / 2 + spriteScreenX);
+            let drawEndX = Math.floor(spriteW / 2 + spriteScreenX);
 
             for (let stripe = drawStartX; stripe < drawEndX; stripe++) {
                 if (stripe > 0 && stripe < w && transY < zBuffer[stripe]) {
-                    ctx.drawImage(enemyImg, stripe - drawStartX, 0, 1, spriteH, stripe, -spriteH/2 + h/2 + pitch, 1, spriteH);
+                    ctx.drawImage(enemyImg, (stripe - drawStartX) * (enemyImg.width / spriteW), 0, 1, enemyImg.height, stripe, -spriteH/2 + h/2 + pitch, 1, spriteH);
                 }
             }
         }
-
-        requestAnimationFrame(loop);
+        drawMinimap();
     }
 
     function loop() {
         update();
         render();
+        requestAnimationFrame(loop);
     }
-
     loop();
 </script>
 </body>
