@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>The Red Hallway</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Courier New', Courier, monospace; }
+        #gameCanvas { display: block; width: 100%; height: 100vh; }
+        #ui {
+            position: absolute; top: 20px; left: 20px; color: #0f0; font-size: 20px;
+            text-shadow: 0 0 5px #0f0; pointer-events: none;
+        }
+        #jumpscare {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: red; display: none; align-items: center; justify-content: center;
+            font-size: 5rem; font-weight: bold; color: black; z-index: 10;
+        }
+        #win {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; display: none; align-items: center; justify-content: center;
+            font-size: 3rem; font-weight: bold; color: black; z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+    <div id="ui">
+        Objective: Find the BLUE wall.<br>
+        Avoid the RED presence.<br>
+        Controls: W, A, S, D
+    </div>
+    <div id="jumpscare">CAUGHT YOU</div>
+    <div id="win">ESCAPED</div>
+
+<script>
+    // --- SETUP ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width = window.innerWidth;
+    const h = canvas.height = window.innerHeight;
+
+    // --- GAME STATE ---
+    // 1 = Wall, 0 = Empty, 9 = Goal
+    const mapWidth = 24;
+    const mapHeight = 24;
+    const worldMap = [
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,1,1,0,1,1,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,1,9,9,1,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,1,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,0,0,0,1],
+        [1,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+        [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+    ];
+
+    // Player Vars
+    let posX = 22, posY = 12; // Start pos
+    let dirX = -1, dirY = 0; // Initial direction vector
+    let planeX = 0, planeY = 0.66; // Camera plane (FOV)
+    const moveSpeed = 0.08;
+    const rotSpeed = 0.05;
+
+    // Enemy Vars (The Ghost)
+    let enemyX = 2;
+    let enemyY = 2;
+    let enemySpeed = 0.035; 
+    let gameOver = false;
+
+    // Input
+    const keys = { w: false, a: false, s: false, d: false };
+    window.addEventListener('keydown', (e) => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true; });
+    window.addEventListener('keyup', (e) => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; });
+
+    // --- ENGINE ---
+    function gameLoop() {
+        if(gameOver) return;
+        
+        // 1. Logic
+        // Move Enemy (Simple stalker AI - moves directly toward player, ignores walls)
+        let dx = posX - enemyX;
+        let dy = posY - enemyY;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        
+        if (dist > 0.5) {
+            enemyX += (dx / dist) * enemySpeed;
+            enemyY += (dy / dist) * enemySpeed;
+        } else {
+            // DEATH
+            document.getElementById('jumpscare').style.display = 'flex';
+            gameOver = true;
+        }
+
+        // Move Player
+        if (keys.w) {
+            if(worldMap[Math.floor(posX + dirX * moveSpeed)][Math.floor(posY)] === 0) posX += dirX * moveSpeed;
+            if(worldMap[Math.floor(posX)][Math.floor(posY + dirY * moveSpeed)] === 0) posY += dirY * moveSpeed;
+            // Win condition
+            if(worldMap[Math.floor(posX + dirX * moveSpeed)][Math.floor(posY)] === 9) {
+                 document.getElementById('win').style.display = 'flex'; gameOver = true;
+            }
+        }
+        if (keys.s) {
+            if(worldMap[Math.floor(posX - dirX * moveSpeed)][Math.floor(posY)] === 0) posX -= dirX * moveSpeed;
+            if(worldMap[Math.floor(posX)][Math.floor(posY - dirY * moveSpeed)] === 0) posY -= dirY * moveSpeed;
+        }
+        if (keys.d) { // Rotate Right
+            let oldDirX = dirX;
+            dirX = dirX * Math.cos(-rotSpeed) - dirY * Math.sin(-rotSpeed);
+            dirY = oldDirX * Math.sin(-rotSpeed) + dirY * Math.cos(-rotSpeed);
+            let oldPlaneX = planeX;
+            planeX = planeX * Math.cos(-rotSpeed) - planeY * Math.sin(-rotSpeed);
+            planeY = oldPlaneX * Math.sin(-rotSpeed) + planeY * Math.cos(-rotSpeed);
+        }
+        if (keys.a) { // Rotate Left
+            let oldDirX = dirX;
+            dirX = dirX * Math.cos(rotSpeed) - dirY * Math.sin(rotSpeed);
+            dirY = oldDirX * Math.sin(rotSpeed) + dirY * Math.cos(rotSpeed);
+            let oldPlaneX = planeX;
+            planeX = planeX * Math.cos(rotSpeed) - planeY * Math.sin(rotSpeed);
+            planeY = oldPlaneX * Math.sin(rotSpeed) + planeY * Math.cos(rotSpeed);
+        }
+
+        // 2. Rendering (Raycasting)
+        // Clear screen (Draw Floor/Ceiling)
+        ctx.fillStyle = "#000"; // Ceiling
+        ctx.fillRect(0, 0, w, h / 2);
+        ctx.fillStyle = "#111"; // Floor
+        ctx.fillRect(0, h / 2, w, h / 2);
+
+        for (let x = 0; x < w; x++) {
+            // Calculate ray position and direction
+            let cameraX = 2 * x / w - 1;
+            let rayDirX = dirX + planeX * cameraX;
+            let rayDirY = dirY + planeY * cameraX;
+
+            // Which box of the map we're in
+            let mapX = Math.floor(posX);
+            let mapY = Math.floor(posY);
+
+            // Length of ray from current position to next x or y-side
+            let sideDistX;
+            let sideDistY;
+
+            // Length of ray from one x or y-side to next x or y-side
+            let deltaDistX = Math.abs(1 / rayDirX);
+            let deltaDistY = Math.abs(1 / rayDirY);
+            let perpWallDist;
+
+            // What direction to step in x or y-direction (either +1 or -1)
+            let stepX;
+            let stepY;
+
+            let hit = 0;
+            let side; // NS or EW wall hit?
+
+            // Calculate step and initial sideDist
+            if (rayDirX < 0) {
+                stepX = -1;
+                sideDistX = (posX - mapX) * deltaDistX;
+            } else {
+                stepX = 1;
+                sideDistX = (mapX + 1.0 - posX) * deltaDistX;
+            }
+            if (rayDirY < 0) {
+                stepY = -1;
+                sideDistY = (posY - mapY) * deltaDistY;
+            } else {
+                stepY = 1;
+                sideDistY = (mapY + 1.0 - posY) * deltaDistY;
+            }
+
+            // DDA Algorithm
+            while (hit === 0) {
+                // Jump to next map square
+                if (sideDistX < sideDistY) {
+                    sideDistX += deltaDistX;
+                    mapX += stepX;
+                    side = 0;
+                } else {
+                    sideDistY += deltaDistY;
+                    mapY += stepY;
+                    side = 1;
+                }
+                // Check if ray has hit a wall
+                if (worldMap[mapX][mapY] > 0) hit = 1;
+            }
+
+            // Calculate distance projected on camera direction
+            if (side === 0) perpWallDist = (mapX - posX + (1 - stepX) / 2) / rayDirX;
+            else            perpWallDist = (mapY - posY + (1 - stepY) / 2) / rayDirY;
+
+            // Calculate height of line to draw on screen
+            let lineHeight = Math.floor(h / perpWallDist);
+
+            // Calculate lowest and highest pixel to fill in current stripe
+            let drawStart = -lineHeight / 2 + h / 2;
+            if (drawStart < 0) drawStart = 0;
+            let drawEnd = lineHeight / 2 + h / 2;
+            if (drawEnd >= h) drawEnd = h - 1;
+
+            // COLOR & SHADING
+            let color = "#555";
+            // Goal block
+            if(worldMap[mapX][mapY] === 9) color = "#00f"; // Blue for goal
+
+            // Apply shadow based on distance (Horror effect)
+            // The further away, the darker the color becomes.
+            let opacity = 1.0;
+            if (perpWallDist > 1) {
+                opacity = 1 / (perpWallDist * 0.5); 
+            }
+            // Side walls are slightly darker for 3D effect
+            if (side === 1) opacity *= 0.7;
+            
+            ctx.globalAlpha = opacity;
+            ctx.fillStyle = color;
+            ctx.fillRect(x, drawStart, 1, drawEnd - drawStart);
+            ctx.globalAlpha = 1.0;
+        }
+
+        // RENDER ENEMY (Sprite simulation)
+        // We calculate enemy position relative to player
+        let spriteX = enemyX - posX;
+        let spriteY = enemyY - posY;
+        
+        // Transform sprite with the inverse camera matrix
+        let invDet = 1.0 / (planeX * dirY - dirX * planeY);
+        let transformX = invDet * (dirY * spriteX - dirX * spriteY);
+        let transformY = invDet * (-planeY * spriteX + planeX * spriteY); // this is actually the depth inside the screen
+
+        if(transformY > 0) {
+            let spriteScreenX = Math.floor((w / 2) * (1 + transformX / transformY));
+            let spriteHeight = Math.abs(Math.floor(h / transformY)); 
+            let spriteWidth = Math.abs(Math.floor(h / transformY));
+            
+            let drawStartX = -spriteWidth / 2 + spriteScreenX;
+            let drawStartY = -spriteHeight / 2 + h / 2;
+
+            // Draw the ghost
+            // Only draw if it's in front of the wall
+            if (transformY < 20) { // Visibility distance
+                ctx.fillStyle = 'red';
+                // Simple glitch effect
+                let glitchX = Math.random() * 10 - 5;
+                ctx.fillRect(drawStartX + glitchX, drawStartY, spriteWidth, spriteHeight);
+                
+                // Eyes
+                ctx.fillStyle = 'white';
+                ctx.fillRect(drawStartX + spriteWidth*0.2, drawStartY + spriteHeight*0.2, spriteWidth*0.2, spriteHeight*0.2);
+                ctx.fillRect(drawStartX + spriteWidth*0.6, drawStartY + spriteHeight*0.2, spriteWidth*0.2, spriteHeight*0.2);
+            }
+        }
+
+        requestAnimationFrame(gameLoop);
+    }
+
+    // Start
+    requestAnimationFrame(gameLoop);
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+
+</script>
+</body>
+</html>
