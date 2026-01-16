@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Text to Speech Generator</title>
+<style>
+body {
+  background:#fff;
+  color:#111;
+  font-family: Arial, sans-serif;
+  text-align:center;
+  padding:40px;
+}
+textarea {
+  width:70%;
+  height:120px;
+  font-size:16px;
+  padding:10px;
+}
+button {
+  padding:12px 22px;
+  font-size:16px;
+  margin-top:15px;
+  cursor:pointer;
+}
+small { color:#666; }
+</style>
+</head>
+<body>
+
+<h1>Text to Speech Generator</h1>
+<p>Enter your text below:</p>
+<textarea id="text" placeholder="Enter text..."></textarea><br>
+<button onclick="generate()">Generate Audio</button>
+<button id="dl" onclick="download()" disabled>Download</button>
+<br><br>
+<small>High quality neural synthesis</small>
+
+<script>
+const ctx = new (window.AudioContext || window.webkitAudioContext)();
+let recorder, chunks = [], blob;
+
+function hashSeed(str){
+  let h = 2166136261;
+  for (let i=0;i<str.length;i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+
+function rng(seed){
+  return function(){
+    seed ^= seed << 13;
+    seed ^= seed >> 17;
+    seed ^= seed << 5;
+    return ((seed<0?~seed+1:seed) % 1000) / 1000;
+  }
+}
+
+function generate(){
+  if(ctx.state==="suspended") ctx.resume();
+  chunks=[];
+
+  const seedText = document.getElementById("text").value || "default";
+  const rand = rng(hashSeed(seedText));
+
+  const dest = ctx.createMediaStreamDestination();
+  recorder = new MediaRecorder(dest.stream);
+  recorder.ondataavailable = e => chunks.push(e.data);
+  recorder.onstop = () => {
+    blob = new Blob(chunks, {type:"audio/wav"});
+    document.getElementById("dl").disabled=false;
+  };
+  recorder.start();
+
+  const master = ctx.createGain();
+  master.gain.value = 1.4;
+  master.connect(dest);
+  master.connect(ctx.destination);
+
+  const bpm = 165 + rand()*40;
+  const step = 60/bpm/4;
+  const start = ctx.currentTime + 0.05;
+
+  // ===== SYNTH ENGINES =====
+  function square(freq,time,dur,vol=0.5){
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type="square";
+    o.frequency.value=freq;
+    g.gain.setValueAtTime(vol,time);
+    g.gain.exponentialRampToValueAtTime(0.001,time+dur);
+    o.connect(g); g.connect(master);
+    o.start(time); o.stop(time+dur);
+  }
+
+  function saw(freq,time,dur,vol=0.4){
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type="sawtooth";
+    o.frequency.value=freq;
+    g.gain.setValueAtTime(vol,time);
+    g.gain.exponentialRampToValueAtTime(0.001,time+dur);
+    const dist = ctx.createWaveShaper();
+    dist.curve = distort(500);
+    o.connect(dist); dist.connect(g); g.connect(master);
+    o.start(time); o.stop(time+dur);
+  }
+
+  function noise(time,dur,vol=0.3){
+    const buffer = ctx.createBuffer(1, ctx.sampleRate*dur, ctx.sampleRate);
+    const d = buffer.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+    const s = ctx.createBufferSource();
+    s.buffer = buffer;
+    const g = ctx.createGain();
+    g.gain.value=vol;
+    const hp = ctx.createBiquadFilter();
+    hp.type="highpass"; hp.frequency.value=4000;
+    s.connect(hp); hp.connect(g); g.connect(master);
+    s.start(time);
+  }
+
+  function kick(time){
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.frequency.setValueAtTime(140,time);
+    o.frequency.exponentialRampToValueAtTime(35,time+0.15);
+    g.gain.setValueAtTime(1,time);
+    g.gain.exponentialRampToValueAtTime(0.001,time+0.15);
+    o.connect(g); g.connect(master);
+    o.start(time); o.stop(time+0.2);
+  }
+
+  // ===== TIM FOLLIN STYLE SCALES =====
+  const scales = [
+    [0,2,3,5,7,8,11], // phrygian-ish
+    [0,1,4,5,7,8,10], // exotic minor
+    [0,3,5,6,7,10] // dark diminished vibe
+  ];
+  const scale = scales[Math.floor(rand()*scales.length)];
+
+  function noteFreq(note){
+    return 440 * Math.pow(2,(note-69)/12);
+  }
+
+  // ===== COMPOSITION =====
+  let time = start;
+  let root = 36 + Math.floor(rand()*12);
+
+  for(let bar=0; bar<16; bar++){
+    if(rand()>0.7) root += Math.floor(rand()*7)-3;
+
+    for(let i=0;i<16;i++){
+      const t = time + i*step;
+
+      // DRUMS
+      if(i%4===0) kick(t);
+      if(i%8===4) noise(t,0.1,0.4);
+      if(rand()>0.4) noise(t,0.04,0.15);
+
+      // BASS
+      const bassNote = root + scale[Math.floor(rand()*scale.length)];
+      saw(noteFreq(bassNote), t, step*2, 0.45);
+
+      // INSANE LEAD ARPEGGIOS
+      for(let k=0;k<3;k++){
+        const arpNote = root+12+scale[Math.floor(rand()*scale.length)];
+        square(noteFreq(arpNote+Math.floor(rand()*12)), t+k*step/3, step/2, 0.35);
+      }
+
+      // RANDOM MODULATION BURSTS
+      if(rand()>0.85){
+        for(let j=0;j<6;j++){
+          square(noteFreq(root+24+Math.floor(rand()*24)), t+j*step/8, step/6, 0.2);
+        }
+      }
+    }
+    time += 16*step;
+  }
+
+  setTimeout(()=>recorder.stop(), 16000);
+}
+
+function download(){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url;
+  a.download="tts_output.wav";
+  a.click();
+}
+
+function distort(amount){
+  const n = 44100;
+  const curve = new Float32Array(n);
+  for(let i=0;i<n;i++){
+    const x=i*2/n-1;
+    curve[i]=Math.tanh(x*amount);
+  }
+  return curve;
+}
+</script>
+
+</body>
+</html>
