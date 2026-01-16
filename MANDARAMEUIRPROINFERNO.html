@@ -1,154 +1,29 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<title>IA VOZ INSANA</title>
-<style>
-body {
-  background:#050505;
-  color:#0f0;
-  font-family: monospace;
-  text-align:center;
-  padding:40px;
-}
-textarea {
-  width:80%;
-  height:130px;
-  background:black;
-  color:#0f0;
-  border:2px solid #0f0;
-  padding:10px;
-  font-size:16px;
-}
-button {
-  margin-top:20px;
-  padding:14px 28px;
-  font-size:18px;
-  background:#0f0;
-  color:black;
-  border:none;
-  cursor:pointer;
-}
-button:hover { background:#0c0; }
-</style>
-</head>
-<body>
+import random
+import numpy as np
+import soundfile as sf
+from pydub import AudioSegment, effects
+from tortoise.api import TextToSpeech
 
-<h1>👁️‍🗨️ IA VOZ INSANA</h1>
-<p>Digite qualquer coisa:</p>
-<textarea id="text"></textarea><br>
-<button onclick="go()">GERAR VOZ MUTANTE</button>
+tts = TextToSpeech()
 
-<script>
-const ctx = new (window.AudioContext || window.webkitAudioContext)();
-let glitchInterval;
+text = input("Enter text: ")
 
-function go() {
-  const text = document.getElementById("text").value;
-  if (!text) return;
+voice = tts.tts(text)
+sf.write("raw.wav", voice.squeeze(), 24000)
 
-  if (ctx.state === "suspended") ctx.resume();
+audio = AudioSegment.from_wav("raw.wav")
 
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = "pt-BR";
-  utter.rate = 0.6 + Math.random() * 0.8;
-  utter.pitch = 0.1 + Math.random() * 2;
+def explode(seg):
+    noise = AudioSegment.generate_white_noise(duration=120).apply_gain(15)
+    return seg.overlay(noise)
 
-  const dest = ctx.createMediaStreamDestination();
-  const src = ctx.createMediaStreamSource(dest.stream);
+for i in range(8):
+    audio = audio.low_pass_filter(random.randint(150,400))
+    audio = audio.high_pass_filter(random.randint(100,600))
+    audio = effects.speedup(audio, playback_speed=random.uniform(0.4,1.4))
+    audio = audio + random.randint(-6,12)
+    if random.random() < 0.4:
+        audio = explode(audio)
 
-  // ===== INSANE EFFECT CHAIN =====
-  const distortion = ctx.createWaveShaper();
-  distortion.curve = makeDistortionCurve(1200);
-  distortion.oversample = "4x";
-
-  const delay = ctx.createDelay();
-  delay.delayTime.value = 0.03 + Math.random() * 0.2;
-
-  const feedback = ctx.createGain();
-  feedback.gain.value = 0.7;
-
-  const tremolo = ctx.createGain();
-  const tremoloOsc = ctx.createOscillator();
-  tremoloOsc.frequency.value = 12 + Math.random() * 25;
-  tremoloOsc.connect(tremolo.gain);
-  tremoloOsc.start();
-
-  const ring = ctx.createGain();
-  const ringOsc = ctx.createOscillator();
-  ringOsc.frequency.value = 100 + Math.random() * 800;
-  ringOsc.connect(ring.gain);
-  ringOsc.start();
-
-  const bitcrusher = createBitCrusher(ctx, 6 + Math.random() * 4);
-
-  const radioEQ = ctx.createBiquadFilter();
-  radioEQ.type = "bandpass";
-  radioEQ.frequency.value = 1200 + Math.random() * 2000;
-  radioEQ.Q.value = 8;
-
-  const gain = ctx.createGain();
-  gain.gain.value = 1.6;
-
-  delay.connect(feedback);
-  feedback.connect(delay);
-
-  src.connect(distortion);
-  distortion.connect(bitcrusher);
-  bitcrusher.connect(radioEQ);
-  radioEQ.connect(ring);
-  ring.connect(tremolo);
-  tremolo.connect(delay);
-  delay.connect(gain);
-  gain.connect(ctx.destination);
-
-  // === GLITCH STUTTER ===
-  clearInterval(glitchInterval);
-  glitchInterval = setInterval(() => {
-    distortion.curve = makeDistortionCurve(200 + Math.random() * 1600);
-    delay.delayTime.value = Math.random() * 0.25;
-    tremoloOsc.frequency.value = 5 + Math.random() * 40;
-    ringOsc.frequency.value = 80 + Math.random() * 1200;
-    radioEQ.frequency.value = 400 + Math.random() * 4000;
-    gain.gain.value = 0.6 + Math.random() * 2;
-  }, 120);
-
-  utter.onend = () => clearInterval(glitchInterval);
-
-  speechSynthesis.speak(utter);
-}
-
-function makeDistortionCurve(amount) {
-  const k = amount;
-  const n = 44100;
-  const curve = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    const x = i * 2 / n - 1;
-    curve[i] = Math.tanh(x * k);
-  }
-  return curve;
-}
-
-function createBitCrusher(ctx, bits) {
-  const node = ctx.createScriptProcessor(4096, 1, 1);
-  let phaser = 0;
-  let last = 0;
-  const step = Math.pow(0.5, bits);
-  node.onaudioprocess = e => {
-    const input = e.inputBuffer.getChannelData(0);
-    const output = e.outputBuffer.getChannelData(0);
-    for (let i = 0; i < input.length; i++) {
-      phaser += step;
-      if (phaser >= 1.0) {
-        phaser -= 1.0;
-        last = step * Math.floor(input[i] / step + 0.5);
-      }
-      output[i] = last;
-    }
-  };
-  return node;
-}
-</script>
-
-</body>
-</html>
+audio.export("FINAL_INSANE.wav", format="wav")
+print("Saved as FINAL_INSANE.wav")
