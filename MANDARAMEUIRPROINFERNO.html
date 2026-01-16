@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Voz IA Maluca</title>
+  <style>
+    body {
+      background: #0a0a0a;
+      color: #00ffcc;
+      font-family: monospace;
+      text-align: center;
+      padding: 40px;
+    }
+    textarea {
+      width: 80%;
+      height: 120px;
+      background: black;
+      color: #00ffcc;
+      border: 2px solid #00ffcc;
+      padding: 10px;
+      font-size: 16px;
+    }
+    button {
+      margin-top: 15px;
+      padding: 12px 25px;
+      font-size: 18px;
+      background: #00ffcc;
+      color: black;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #00ffaa;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🤖 Voz IA Maluca</h1>
+  <p>Digite qualquer coisa:</p>
+  <textarea id="text"></textarea><br>
+  <button onclick="speak()">GERAR VOZ INSANA</button>
+
+  <script>
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function speak() {
+      const text = document.getElementById("text").value;
+      if (!text) return;
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = "pt-BR";
+      utterance.pitch = Math.random() * 2;
+      utterance.rate = 0.7 + Math.random() * 0.8;
+
+      const destination = audioCtx.createMediaStreamDestination();
+      const synth = window.speechSynthesis;
+
+      const source = audioCtx.createMediaStreamSource(destination.stream);
+
+      const distortion = audioCtx.createWaveShaper();
+      distortion.curve = makeDistortionCurve(600);
+      distortion.oversample = "4x";
+
+      const delay = audioCtx.createDelay();
+      delay.delayTime.value = 0.15 + Math.random() * 0.25;
+
+      const feedback = audioCtx.createGain();
+      feedback.gain.value = 0.4;
+
+      delay.connect(feedback);
+      feedback.connect(delay);
+
+      const pitch = audioCtx.createBiquadFilter();
+      pitch.type = "bandpass";
+      pitch.frequency.value = 700 + Math.random() * 1200;
+
+      const gain = audioCtx.createGain();
+      gain.gain.value = 1.4;
+
+      source.connect(distortion);
+      distortion.connect(pitch);
+      pitch.connect(delay);
+      delay.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      synth.speak(utterance);
+    }
+
+    function makeDistortionCurve(amount) {
+      const k = typeof amount === "number" ? amount : 50;
+      const n_samples = 44100;
+      const curve = new Float32Array(n_samples);
+      const deg = Math.PI / 180;
+      for (let i = 0; i < n_samples; ++i) {
+        const x = i * 2 / n_samples - 1;
+        curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+      }
+      return curve;
+    }
+  </script>
+
+</body>
+</html>
