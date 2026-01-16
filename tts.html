@@ -5,91 +5,95 @@
 <title>Text to Speech Generator</title>
 <style>
 body {
-  background:#ffffff;
-  color:#111;
-  font-family: Arial, Helvetica, sans-serif;
-  text-align:center;
-  padding:40px;
+  background: #fff;
+  color: #111;
+  font-family: Arial, sans-serif;
+  text-align: center;
+  padding: 30px;
 }
 textarea {
-  width:80%;
-  height:90px;
-  font-size:15px;
-  padding:10px;
+  width: 80%;
+  height: 100px;
+  margin-top: 10px;
+  font-size: 16px;
+  padding: 10px;
 }
 button {
-  padding:12px 20px;
-  margin:10px;
-  font-size:16px;
-  cursor:pointer;
+  font-size: 16px;
+  padding: 12px 20px;
+  margin: 10px;
+  cursor: pointer;
 }
-audio {
-  width:80%;
-  margin-top:20px;
-}
-#status {
-  margin-top:12px;
-  color:#555;
-}
+#status { margin-top: 15px; color: #555; }
+audio { width: 80%; margin-top: 20px; }
 </style>
 </head>
 <body>
 
 <h1>Text to Speech Generator</h1>
-<p>Enter text and click generate.</p>
-<textarea id="prompt" placeholder="Type your text here..."></textarea><br>
-<button id="gen">Generate</button>
-<button id="dl" disabled>Download</button>
+<p>Enter text below to influence the generated 8-bit theme:</p>
+<textarea id="prompt" placeholder="Type something..."></textarea><br>
+<button id="generate">Generate Music (Agent X Style)</button>
+<button id="download" disabled>Download</button>
 <div id="status">Ready.</div>
 <audio id="player" controls></audio>
 
 <script>
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
-let ctx, dest, recorder, chunks = [], blob;
+let ctx, recorder, dest, chunks, finalBlob;
 
-const SONG_LENGTH = 150; // seconds
-const BPM = 150;
-const BEAT = 60 / BPM;
+function setStatus(t){ document.getElementById("status").innerText = t; }
 
-function midiToFreq(m){ return 440 * Math.pow(2,(m-69)/12); }
+function hashSeed(str){
+  let h=2166136261;
+  for(let i=0;i<str.length;i++){
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h,16777619);
+  }
+  return Math.abs(h);
+}
+function rng(seed){
+  return function(){
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return (seed & 0xffffffff) / 4294967296;
+  };
+}
 
-function status(t){ document.getElementById("status").innerText = t; }
-
-function startRecording(){
+function startRecord(){
   chunks = [];
   dest = ctx.createMediaStreamDestination();
   recorder = new MediaRecorder(dest.stream);
   recorder.ondataavailable = e => chunks.push(e.data);
   recorder.onstop = () => {
-    blob = new Blob(chunks,{type:"audio/wav"});
-    document.getElementById("dl").disabled = false;
-    document.getElementById("player").src = URL.createObjectURL(blob);
+    finalBlob = new Blob(chunks, { type: "audio/wav" });
+    document.getElementById("download").disabled = false;
+    document.getElementById("player").src = URL.createObjectURL(finalBlob);
   };
   recorder.start();
 }
 
-function stopRecording(){
-  recorder.stop();
+function stopRecordAfter(sec){
+  setTimeout(()=>recorder.stop(), sec*1000 + 500);
 }
 
-function square(freq,time,dur,vol=0.3){
-  const o = ctx.createOscillator();
-  o.type="square";
-  o.frequency.value=freq;
+function square(freq, t, dur, vol=0.3){
+  const osc = ctx.createOscillator();
+  osc.type = 'square';
+  osc.frequency.value = freq;
   const g = ctx.createGain();
-  g.gain.setValueAtTime(vol,time);
-  g.gain.exponentialRampToValueAtTime(0.0001,time+dur);
-  o.connect(g);
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(g);
   g.connect(ctx.destination);
   g.connect(dest);
-  o.start(time);
-  o.stop(time+dur);
+  osc.start(t);
+  osc.stop(t + dur + 0.02);
 }
 
-function noise(time,dur,vol=0.3){
-  const buffer = ctx.createBuffer(1,ctx.sampleRate*dur,ctx.sampleRate);
+function noiseBeat(t, dur=0.05, vol=0.25){
+  const buffer = ctx.createBuffer(1, ctx.sampleRate*dur, ctx.sampleRate);
   const data = buffer.getChannelData(0);
-  for(let i=0;i<data.length;i++) data[i]=Math.random()*2-1;
+  for(let i=0; i<data.length; i++) data[i] = Math.random()*2 - 1;
   const src = ctx.createBufferSource();
   src.buffer = buffer;
   const g = ctx.createGain();
@@ -97,74 +101,77 @@ function noise(time,dur,vol=0.3){
   src.connect(g);
   g.connect(ctx.destination);
   g.connect(dest);
-  src.start(time);
+  src.start(t);
 }
 
-function generateSong(){
+document.getElementById("generate").onclick = function(){
   ctx = new AudioCtx();
-  startRecording();
-  status("Generating ZX Spectrum music...");
+  setStatus("Generating 8-bit theme...");
+  startRecord();
 
+  const prompt = document.getElementById("prompt").value.trim() || "ZX Agent";
+  const rand = rng(hashSeed(prompt));
+
+  const BPM = 140 + Math.floor(rand()*40);
+  const beat = 60 / BPM;
+  const lengthBars = 64; // structure
   let t = ctx.currentTime + 0.2;
+  const root = 48 + Math.floor(rand()*8);
 
-  const key = 48 + Math.floor(Math.random()*8);
-  const chords = [
-    [0,4,7],
-    [0,3,7],
-    [2,5,9],
-    [0,5,7]
-  ];
+  const scale = [0,2,3,5,7,8,10,12];
 
-  const leadScale = [0,2,3,5,7,8,10,12];
+  function note(m){ return 440 * Math.pow(2,(m-69)/12); }
 
-  const bars = Math.floor(SONG_LENGTH / (BEAT*4));
+  // Intro arpeggio
+  for(let i=0; i<16; i++){
+    const n = root + scale[i % scale.length] + 24;
+    square(note(n), t + i*(beat/2), beat/2, 0.22);
+    if(rand()>0.7) noiseBeat(t + i*(beat/2), 0.04, 0.15);
+  }
+  t += beat*2;
 
-  for(let bar=0; bar<bars; bar++){
-    const chord = chords[bar % chords.length];
-    const root = key + (bar%2)*2;
+  // Main theme + variations
+  for(let bar=0; bar<lengthBars; bar++){
+    const sectionRoot = root + ((bar%4)*2);
 
-    // Chord stabs
-    for(let i=0;i<chord.length;i++){
-      square(midiToFreq(root+chord[i]), t, BEAT*0.9, 0.12);
+    // chord stab
+    square(note(sectionRoot), t, beat, 0.25);
+    square(note(sectionRoot+4), t, beat, 0.2);
+    square(note(sectionRoot+7), t, beat, 0.18);
+
+    // melody
+    for(let m=0; m<4; m++){
+      const idx = Math.floor(rand()*scale.length);
+      const melNote = sectionRoot + scale[idx] + 12;
+      square(note(melNote), t + m*beat, beat*0.9, 0.26);
+      if(rand()>0.5) noiseBeat(t + m*beat, 0.04, 0.2);
     }
 
-    // Bass
-    square(midiToFreq(root-12), t, BEAT*3.8, 0.25);
-
-    // Arpeggio (ZX style fast)
-    for(let i=0;i<16;i++){
-      const note = root + chord[i%chord.length] + 12;
-      square(midiToFreq(note), t + i*(BEAT/4), BEAT/4, 0.18);
-    }
-
-    // Lead melody
-    if(bar%2===0){
-      for(let i=0;i<4;i++){
-        const n = root + leadScale[Math.floor(Math.random()*leadScale.length)] + 12;
-        square(midiToFreq(n), t + i*BEAT, BEAT*0.9, 0.2);
+    // lead arpeggio fill
+    if(bar % 8 < 4){
+      for(let a=0; a<8; a++){
+        const arpNote = sectionRoot + scale[a % scale.length] + 12;
+        square(note(arpNote), t + a*(beat/8), beat/8, 0.17);
       }
     }
 
-    // Drums
-    noise(t, 0.05, 0.4);
-    noise(t + BEAT*2, 0.05, 0.35);
+    // small vibe drum
+    noiseBeat(t + beat*0.5, 0.03, 0.18);
+    if(rand()>0.6) noiseBeat(t + beat*1.5, 0.03, 0.2);
 
-    t += BEAT*4;
+    t += beat*2;
   }
 
-  setTimeout(()=>{
-    stopRecording();
-    status("Done.");
-  }, SONG_LENGTH*1000 + 500);
-}
+  stopRecordAfter((lengthBars*2)*(beat) + 1);
+};
 
-document.getElementById("gen").onclick = generateSong;
-document.getElementById("dl").onclick = () => {
+document.getElementById("download").onclick = function(){
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "zx_spectrum_track.wav";
+  a.href = URL.createObjectURL(finalBlob);
+  a.download = "agentx_style_theme.wav";
   a.click();
 };
+
 </script>
 </body>
 </html>
