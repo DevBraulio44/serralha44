@@ -1,198 +1,436 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8" />
 <title>Text to Speech Generator</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
-body {
-  background:#ffffff;
-  color:#111;
-  font-family: Arial, sans-serif;
-  text-align:center;
-  padding:40px;
-}
-textarea {
-  width:70%;
-  height:120px;
-  font-size:16px;
-  padding:10px;
-}
-button {
-  padding:12px 22px;
-  font-size:16px;
-  margin-top:15px;
-  cursor:pointer;
-}
-small { color:#666; }
+  body { font-family: Inter, Arial, sans-serif; background:#fff; color:#111; text-align:center; padding:32px; }
+  h1 { margin-bottom:6px; }
+  textarea { width:80%; height:96px; font-size:15px; padding:10px; margin-top:8px; }
+  button { padding:10px 16px; font-size:15px; margin:8px; cursor:pointer; }
+  #status { margin-top:12px; color:#444; min-height:20px; }
+  audio { margin-top:18px; width:80%; }
+  .muted { opacity:0.9; color:#666; font-size:13px; }
 </style>
 </head>
 <body>
-
-<h1>Text to Speech Generator</h1>
-<p>Enter your text below:</p>
-<textarea id="text" placeholder="Enter text..."></textarea><br>
-<button onclick="generate()">Generate Audio</button>
-<button id="dl" onclick="download()" disabled>Download</button>
-<br><br>
-<small>High quality neural synthesis</small>
+  <h1>Text to Speech Generator</h1>
+  <p class="muted">Enter a short prompt — it will influence the beat & melody.</p>
+  <textarea id="prompt" placeholder="Type something... (optional)"></textarea><br>
+  <button id="generate">Generate Song (2m30s)</button>
+  <button id="download" disabled>Download WAV</button>
+  <div id="status">Ready.</div>
+  <audio id="player" controls></audio>
 
 <script>
-const ctx = new (window.AudioContext || window.webkitAudioContext)();
-let recorder, chunks = [], blob;
+/*
+  TTS-LOOKING SECRET BEAT ENGINE
+  - OfflineAudioContext is used to render a continuous long track (2m30s).
+  - Chords, arps, leads, drums are procedurally scheduled.
+  - Final output is quantized to 8-bit-like resolution for retro vibe,
+    then packaged to a downloadable WAV.
+*/
 
-function hashSeed(str){
-  let h = 2166136261;
-  for (let i=0;i<str.length;i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
+const DURATION = 150; // seconds (2m30s)
+const SR = 44100;
+
+const generateBtn = document.getElementById('generate');
+const downloadBtn = document.getElementById('download');
+const statusEl = document.getElementById('status');
+const player = document.getElementById('player');
+const promptInput = document.getElementById('prompt');
+
+function setStatus(t){ statusEl.textContent = t; }
+
+function hashSeed(s){
+  let h=2166136261;
+  for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h,16777619); }
   return Math.abs(h);
 }
-function rng(seed){
-  return function(){
-    seed ^= seed << 13;
-    seed ^= seed >> 17;
-    seed ^= seed << 5;
-    return ((seed<0?~seed+1:seed) % 1000) / 1000;
-  }
+function rngFactory(seed){
+  return function(){ seed = (seed * 1664525 + 1013904223) >>> 0; return (seed & 0xffffffff) / 4294967296; };
 }
 
-function generate(){
-  if(ctx.state==="suspended") ctx.resume();
-  chunks=[];
+// Utilities
+function midiToFreq(m){ return 440 * Math.pow(2, (m - 69) / 12); }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function makeNoiseBuffer(ctx, seconds=1){
+  const len = Math.floor(seconds * ctx.sampleRate);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+  for(let i=0;i<len;i++) data[i] = Math.random()*2 - 1;
+  return buf;
+}
 
-  const seedText = document.getElementById("text").value || "default";
-  const rand = rng(hashSeed(seedText));
+function scheduleADSREnvelope(gainNode, ctxTime, start, dur, a=0.005, d=0.03, s=0.8, r=0.04, peak=1){
+  const g = gainNode.gain;
+  g.setValueAtTime(0, start);
+  g.linearRampToValueAtTime(peak, start + a);
+  g.linearRampToValueAtTime(peak * s, start + a + d);
+  g.setValueAtTime(peak * s, start + dur - r);
+  g.linearRampToValueAtTime(0.0001, start + dur);
+}
 
-  const dest = ctx.createMediaStreamDestination();
-  recorder = new MediaRecorder(dest.stream);
-  recorder.ondataavailable = e => chunks.push(e.data);
-  recorder.onstop = () => {
-    blob = new Blob(chunks, {type:"audio/wav"});
-    document.getElementById("dl").disabled=false;
-  };
-  recorder.start();
+// Main render function
+async function renderSong(promptText){
+  setStatus('Preparing offline audio graph...');
+  const seed = hashSeed((promptText||'') + Date.now().toString());
+  const rand = rngFactory(seed);
 
-  const master = ctx.createGain();
-  master.gain.value = 1.3;
-  master.connect(dest);
-  master.connect(ctx.destination);
+  const offlineCtx = new OfflineAudioContext(2, SR * DURATION, SR);
 
-  const bpm = 160 + rand()*40;
-  const step = 60/bpm/4;
-  const start = ctx.currentTime + 0.1;
+  // Master bus with light compression-ish feel via gain (we'll not implement true comp)
+  const master = offlineCtx.createGain();
+  master.gain.value = 0.9;
+  master.connect(offlineCtx.destination);
 
-  function square(freq,time,dur,vol=0.35){
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type="square";
-    o.frequency.value=freq;
-    g.gain.setValueAtTime(vol,time);
-    g.gain.exponentialRampToValueAtTime(0.001,time+dur);
-    o.connect(g); g.connect(master);
-    o.start(time); o.stop(time+dur+0.02);
-  }
+  // small stereo width: split into two gains with slight detune for leads/chords when needed
+  // Precreate a noise buffer for drums
+  const noiseBuf = makeNoiseBuffer(offlineCtx, 1.0);
 
-  function saw(freq,time,dur,vol=0.4){
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type="sawtooth";
-    o.frequency.value=freq;
-    g.gain.setValueAtTime(vol,time);
-    g.gain.exponentialRampToValueAtTime(0.001,time+dur);
-    const dist = ctx.createWaveShaper();
-    dist.curve = distort(500);
-    o.connect(dist); dist.connect(g); g.connect(master);
-    o.start(time); o.stop(time+dur+0.02);
-  }
+  // Musical parameters
+  const bpm = 140 + Math.floor(rand()*30); // tempo
+  const beat = 60 / bpm; // quarter note in seconds
+  const bar = beat * 4;
 
-  function noise(time,dur,vol=0.25){
-    const buffer = ctx.createBuffer(1, ctx.sampleRate*dur, ctx.sampleRate);
-    const d = buffer.getChannelData(0);
-    for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
-    const s = ctx.createBufferSource();
-    s.buffer = buffer;
-    const g = ctx.createGain();
-    g.gain.value=vol;
-    const hp = ctx.createBiquadFilter();
-    hp.type="highpass"; hp.frequency.value=4000;
-    s.connect(hp); hp.connect(g); g.connect(master);
-    s.start(time);
-  }
-
-  function kick(time){
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.frequency.setValueAtTime(150,time);
-    o.frequency.exponentialRampToValueAtTime(40,time+0.18);
-    g.gain.setValueAtTime(1,time);
-    g.gain.exponentialRampToValueAtTime(0.001,time+0.18);
-    o.connect(g); g.connect(master);
-    o.start(time); o.stop(time+0.22);
-  }
-
-  const scales = [
-    [0,2,3,5,7,8,11],
-    [0,1,4,5,7,8,10],
-    [0,3,5,6,7,10]
+  // Chord progression (minor-ish modal, movable root)
+  const baseRoot = 48 + Math.floor(rand()*12); // MIDI note 48 - 59
+  const progModes = [
+    [0,4,7,10], // minor7 (but we'll shift for a Tim-like weirdness)
+    [0,3,7,10], // minor (triad + 7)
+    [0,5,9,12], // suspended flavor (odd)
+    [0,3,6,9]   // darker cluster
   ];
-  const scale = scales[Math.floor(rand()*scales.length)];
+  const progression = [
+    progModes[Math.floor(rand()*progModes.length)],
+    progModes[Math.floor(rand()*progModes.length)],
+    progModes[Math.floor(rand()*progModes.length)],
+    progModes[Math.floor(rand()*progModes.length)]
+  ];
 
-  function noteFreq(note){
-    return 440 * Math.pow(2,(note-69)/12);
+  // Helper: schedule a chord pad (saw + lowpass)
+  function scheduleChord(startTime, root, chordIntervals, dur){
+    const voices = 3;
+    for(let v=0; v<voices; v++){
+      const osc = offlineCtx.createOscillator();
+      const g = offlineCtx.createGain();
+      osc.type = (v===0) ? 'sawtooth' : (v===1 ? 'square' : 'sawtooth');
+      const detune = (v-1)*8 + (rand()*6 - 3);
+      osc.detune.value = detune;
+      // pick a chord note
+      const noteIdx = chordIntervals[v % chordIntervals.length];
+      const midi = root + noteIdx + (v===2 ? 12 : 0);
+      osc.frequency.value = midiToFreq(midi);
+      // lowpass filter for warmth
+      const lp = offlineCtx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 2000 - v*400;
+      lp.Q.value = 0.7 + v*0.3;
+      osc.connect(lp);
+      lp.connect(g);
+      g.connect(master);
+      // ADSR
+      scheduleADSREnvelope(g, offlineCtx.currentTime, startTime, dur, 0.02, 0.2, 0.6, 0.3, 0.9 - v*0.18);
+      osc.start(startTime);
+      osc.stop(startTime + dur + 0.05);
+    }
   }
 
-  let time = start;
-  let root = 36 + Math.floor(rand()*12);
+  // Lead / 'guitar-like' voice: fast envelope, detuned saw + distortion
+  function scheduleLead(noteMidi, startTime, dur, pan=0){
+    const leftGain = offlineCtx.createGain();
+    const rightGain = offlineCtx.createGain();
+    const splitter = offlineCtx.createChannelSplitter(2);
+    const merger = offlineCtx.createChannelMerger(2);
 
-  for(let bar=0; bar<16; bar++){
-    if(rand()>0.7) root += Math.floor(rand()*7)-3;
+    // simple stereo by splitting through panner-like small differences
+    const o1 = offlineCtx.createOscillator();
+    o1.type = 'square';
+    o1.frequency.value = midiToFreq(noteMidi);
+    o1.detune.value = -6 + (rand()*3 - 1.5);
 
-    for(let i=0;i<16;i++){
-      const t = time + i*step;
+    const o2 = offlineCtx.createOscillator();
+    o2.type = 'sawtooth';
+    o2.frequency.value = midiToFreq(noteMidi + 12);
+    o2.detune.value = 10 + (rand()*5);
 
-      if(i%4===0) kick(t);
-      if(i%8===4) noise(t,0.1,0.4);
-      if(rand()>0.5) noise(t,0.04,0.15);
+    // mild waveshaper for crunch (guitar-ish)
+    const sh = offlineCtx.createWaveShaper();
+    const curve = new Float32Array(65536);
+    const k = 400;
+    for(let i=0;i<curve.length;i++){
+      const x = (i/curve.length)*2 - 1;
+      curve[i] = Math.tanh(x * k);
+    }
+    sh.curve = curve;
+    sh.oversample = '2x';
 
-      const bassNote = root + scale[Math.floor(rand()*scale.length)];
-      saw(noteFreq(bassNote), t, step*2, 0.45);
+    const g = offlineCtx.createGain();
+    g.gain.value = 0.9;
 
-      for(let k=0;k<4;k++){
-        const arp = root+12+scale[Math.floor(rand()*scale.length)];
-        square(noteFreq(arp+Math.floor(rand()*12)), t+k*step/4, step/3, 0.3);
-      }
+    o1.connect(sh);
+    o2.connect(sh);
+    sh.connect(g);
 
-      if(rand()>0.88){
-        for(let j=0;j<8;j++){
-          square(noteFreq(root+24+Math.floor(rand()*24)), t+j*step/8, step/6, 0.2);
-        }
+    // slight filter to simulate body
+    const hp = offlineCtx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 120;
+
+    g.connect(hp);
+    hp.connect(master);
+
+    scheduleADSREnvelope(g, offlineCtx.currentTime, startTime, dur, 0.001, 0.02, 0.6, 0.02, 0.8);
+
+    o1.start(startTime);
+    o2.start(startTime);
+    o1.stop(startTime + dur + 0.02);
+    o2.stop(startTime + dur + 0.02);
+  }
+
+  // Arpeggio voice: fast, plucky
+  function scheduleArp(noteMidi, startTime, dur, rate = 12){
+    const notes = Math.max(2, Math.floor(dur * rate));
+    for(let i=0;i<notes;i++){
+      const t = startTime + (i / notes) * dur;
+      const pitchShift = ((i % 4) * 3) + (Math.floor(rand()*3)*12);
+      const osc = offlineCtx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = midiToFreq(noteMidi + pitchShift);
+      const g = offlineCtx.createGain();
+      scheduleADSREnvelope(g, offlineCtx.currentTime, t, dur/notes * 0.95, 0.001, 0.01, 0.2, 0.01, 0.7);
+      osc.connect(g); g.connect(master);
+      osc.start(t); osc.stop(t + dur/notes);
+    }
+  }
+
+  // Drums: using noise bursts and sine sweeps (classic chiptune-ish drums)
+  function scheduleKick(time){
+    const osc = offlineCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(110, time);
+    osc.frequency.exponentialRampToValueAtTime(45, time + 0.14);
+    const g = offlineCtx.createGain();
+    g.gain.setValueAtTime(1.0, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.16);
+    const lp = offlineCtx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 900;
+    osc.connect(lp); lp.connect(g); g.connect(master);
+    osc.start(time); osc.stop(time + 0.18);
+  }
+  function scheduleSnare(time){
+    const src = offlineCtx.createBufferSource();
+    src.buffer = noiseBuf;
+    const g = offlineCtx.createGain();
+    g.gain.setValueAtTime(1.2, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+    const bp = offlineCtx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 2000;
+    bp.Q.value = 0.8;
+    src.connect(bp); bp.connect(g); g.connect(master);
+    // a little tone under snare
+    const tone = offlineCtx.createOscillator();
+    tone.type = 'triangle';
+    tone.frequency.value = 180;
+    const tg = offlineCtx.createGain();
+    tg.gain.setValueAtTime(0.25, time);
+    tg.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+    tone.connect(tg); tg.connect(master);
+    src.start(time);
+    tone.start(time);
+    src.stop(time + 0.18);
+    tone.stop(time + 0.12);
+  }
+  function scheduleHat(time, open=false){
+    const src = offlineCtx.createBufferSource();
+    src.buffer = noiseBuf;
+    const g = offlineCtx.createGain();
+    g.gain.setValueAtTime(open ? 0.35 : 0.18, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + (open?0.25:0.06));
+    const hp = offlineCtx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 5000;
+    src.connect(hp);
+    hp.connect(g); g.connect(master);
+    src.start(time); src.stop(time + (open?0.25:0.06));
+  }
+
+  // Arrange sections: intro, build, drop, middle, outro
+  let t = 0.1;
+  // Intro (8 bars) - gentle arpeggios + pads
+  for(let barIdx=0; barIdx<8; barIdx++){
+    const chordRoot = baseRoot + ((barIdx % 4) * 0); // keep root shifting slowly
+    const chord = progression[barIdx % progression.length];
+    scheduleChord(t, chordRoot, chord, bar);
+    // arpeggio runs across the bar
+    scheduleArp(chordRoot + 12, t, bar, 12);
+    if(barIdx % 2 === 1) {
+      scheduleLead(chordRoot + 24, t + bar*0.1, bar*0.6, (barIdx%2===0? -0.3:0.3));
+    }
+    t += bar;
+  }
+
+  // Main loop (repeat with variations) - 32 bars total
+  const mainBars = 32;
+  for(let mb=0; mb<mainBars; mb++){
+    const barStart = t;
+    const chordRoot = baseRoot + (Math.floor(mb/8)*2); // small motion each 8 bars
+    const chord = progression[mb % progression.length];
+
+    // Chord pad for the whole bar
+    scheduleChord(barStart, chordRoot, chord, bar);
+
+    // bassline: simple bouncy saw
+    const bassPattern = [0,0, -2, -3, 0, -4, -2, 0]; // offsets in semitones
+    const beatSubdivision = 4;
+    for(let i=0;i<beatSubdivision;i++){
+      const bt = barStart + i*(beat);
+      const bassNote = chordRoot + bassPattern[i % bassPattern.length];
+      // low saw for bass
+      const o = offlineCtx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = midiToFreq(bassNote);
+      const g = offlineCtx.createGain();
+      g.gain.setValueAtTime(0.9, bt);
+      g.gain.exponentialRampToValueAtTime(0.001, bt + beat*0.95);
+      // slight bit of drive
+      const sh = offlineCtx.createWaveShaper();
+      sh.curve = new Float32Array([ -0.8, -0.2, 0.2, 0.8 ]);
+      o.connect(sh); sh.connect(g); g.connect(master);
+      o.start(bt); o.stop(bt + beat*0.98);
+    }
+
+    // Drum groove across the bar
+    // Kick on 1 and the & of 3 occasionally
+    scheduleKick(barStart + 0.0);
+    if(Math.random() < 0.55) scheduleKick(barStart + beat*2.5);
+    // Snare on 2 and 4
+    scheduleSnare(barStart + beat*1.0);
+    scheduleSnare(barStart + beat*3.0);
+    // hats
+    for(let h=0; h<8; h++){
+      const ht = barStart + h*(beat/2.0);
+      scheduleHat(ht, Math.random() < 0.08 && h%2===0);
+    }
+
+    // Leads and arpeggios: stronger on certain bars
+    if(mb % 2 === 0){
+      scheduleArp(chordRoot + 12, barStart + 0.0, beat*2, 18);
+    }
+    if(mb % 4 === 1){
+      scheduleLead(chordRoot + 24 + (Math.floor(rand()*6)), barStart + beat*0.2, beat*3);
+    }
+    // occasional fills
+    if(rand() > 0.85){
+      for(let f=0; f<6; f++){
+        scheduleLead(chordRoot + 28 + f, barStart + beat*(3.0) + f*(beat/8), beat/8, 0);
       }
     }
-    time += 16*step;
+
+    t += bar;
   }
 
-  setTimeout(()=>recorder.stop(), 17000);
-}
+  // Outro (8 bars) - fade pads
+  for(let ob=0; ob<8; ob++){
+    const chordRoot = baseRoot;
+    const chord = progression[ob % progression.length];
+    scheduleChord(t, chordRoot, chord, bar);
+    if(ob%2===0) scheduleArp(chordRoot+12, t, bar, 14);
+    t += bar;
+  }
 
-function download(){
+  // Render
+  setStatus('Rendering audio (in-browser) — creating final file...');
+  const rendered = await offlineCtx.startRendering();
+
+  // Post-process: emulate 8-bit "color" by coarse amplitude quantization
+  setStatus('Applying 8-bit quantization & packing WAV...');
+  // copy channels and quantize
+  const chL = rendered.getChannelData(0);
+  const chR = rendered.numberOfChannels > 1 ? rendered.getChannelData(1) : rendered.getChannelData(0);
+
+  // Create interleaved Int16 WAV but first quantize to 8-bit-like levels
+  const totalSamples = rendered.length;
+  const interleaved = new Float32Array(totalSamples * 2);
+  for(let i=0;i<totalSamples;i++){
+    // quantize to 256 levels (-1..1 -> 0..255 -> back)
+    let sL = clamp(chL[i], -1, 1);
+    let sR = clamp(chR[i], -1, 1);
+    // soft saturate a bit to keep punch
+    sL = Math.tanh(sL * 1.0);
+    sR = Math.tanh(sR * 1.0);
+    const qL = Math.round(((sL + 1) / 2) * 255) / 255 * 2 - 1;
+    const qR = Math.round(((sR + 1) / 2) * 255) / 255 * 2 - 1;
+    interleaved[i*2] = qL;
+    interleaved[i*2+1] = qR;
+  }
+
+  // encode to 16-bit PCM WAV
+  function floatTo16BitPCM(output, offset, input) {
+    for (let i = 0; i < input.length; i++, offset += 2) {
+      let s = Math.max(-1, Math.min(1, input[i]));
+      s = s < 0 ? s * 0x8000 : s * 0x7fff;
+      output.setInt16(offset, s, true);
+    }
+  }
+
+  const wavBuffer = new ArrayBuffer(44 + interleaved.length * 2);
+  const view = new DataView(wavBuffer);
+
+  // RIFF header
+  function writeString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+  writeString(view, 0, 'RIFF');
+  view.setUint32(4, 36 + interleaved.length * 2, true);
+  writeString(view, 8, 'WAVE');
+  writeString(view, 12, 'fmt ');
+  view.setUint32(16, 16, true); // PCM chunk size
+  view.setUint16(20, 1, true); // format = 1 PCM
+  view.setUint16(22, 2, true); // channels
+  view.setUint32(24, SR, true); // sample rate
+  view.setUint32(28, SR * 2 * 2, true); // byte rate (sampleRate * blockAlign)
+  view.setUint16(32, 4, true); // block align (channels * bytesPerSample)
+  view.setUint16(34, 16, true); // bits per sample
+  writeString(view, 36, 'data');
+  view.setUint32(40, interleaved.length * 2, true);
+
+  floatTo16BitPCM(view, 44, interleaved);
+
+  const blob = new Blob([view], { type: 'audio/wav' });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href=url;
-  a.download="tts_output.wav";
-  a.click();
+
+  setStatus('Done — playing and ready to download.');
+  player.src = url;
+  player.play().catch(()=>{ /* autoplay may fail; user can press play */ });
+  downloadBtn.disabled = false;
+  downloadBtn.onclick = () => {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'secret_chiptune.wav';
+    a.click();
+  };
 }
 
-function distort(amount){
-  const n = 44100;
-  const curve = new Float32Array(n);
-  for(let i=0;i<n;i++){
-    const x=i*2/n-1;
-    curve[i]=Math.tanh(x*amount);
+generateBtn.addEventListener('click', async () => {
+  generateBtn.disabled = true;
+  downloadBtn.disabled = true;
+  setStatus('Starting generation...');
+  try{
+    await renderSong(promptInput.value.trim());
+  }catch(e){
+    console.error(e);
+    setStatus('Error during generation: ' + (e && e.message ? e.message : e));
+  } finally {
+    generateBtn.disabled = false;
   }
-  return curve;
-}
-</script>
+});
 
+</script>
 </body>
 </html>
