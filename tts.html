@@ -1,362 +1,170 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<title>Text to Speech Generator (Fixed)</title>
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="UTF-8">
+<title>Text to Speech Generator</title>
 <style>
-  body { font-family: Inter, Arial, sans-serif; background:#fff; color:#111; text-align:center; padding:32px; }
-  h1 { margin-bottom:6px; }
-  textarea { width:80%; height:96px; font-size:15px; padding:10px; margin-top:8px; }
-  button { padding:10px 16px; font-size:15px; margin:8px; cursor:pointer; }
-  #status { margin-top:12px; color:#444; min-height:20px; }
-  audio { margin-top:18px; width:80%; }
-  .muted { opacity:0.9; color:#666; font-size:13px; }
+body {
+  background:#ffffff;
+  color:#111;
+  font-family: Arial, Helvetica, sans-serif;
+  text-align:center;
+  padding:40px;
+}
+textarea {
+  width:80%;
+  height:90px;
+  font-size:15px;
+  padding:10px;
+}
+button {
+  padding:12px 20px;
+  margin:10px;
+  font-size:16px;
+  cursor:pointer;
+}
+audio {
+  width:80%;
+  margin-top:20px;
+}
+#status {
+  margin-top:12px;
+  color:#555;
+}
 </style>
 </head>
 <body>
-  <h1>Text to Speech Generator</h1>
-  <p class="muted">Enter a short prompt — it will influence the beat & melody.</p>
-  <textarea id="prompt" placeholder="Type something... (optional)"></textarea><br>
-  <button id="generate">Generate Song (2m30s)</button>
-  <button id="download" disabled>Download WAV</button>
-  <div id="status">Ready.</div>
-  <audio id="player" controls></audio>
+
+<h1>Text to Speech Generator</h1>
+<p>Enter text and click generate.</p>
+<textarea id="prompt" placeholder="Type your text here..."></textarea><br>
+<button id="gen">Generate</button>
+<button id="dl" disabled>Download</button>
+<div id="status">Ready.</div>
+<audio id="player" controls></audio>
 
 <script>
-const DURATION = 150; // seconds (2m30s)
-const SR = 44100;
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let ctx, dest, recorder, chunks = [], blob;
 
-const generateBtn = document.getElementById('generate');
-const downloadBtn = document.getElementById('download');
-const statusEl = document.getElementById('status');
-const player = document.getElementById('player');
-const promptInput = document.getElementById('prompt');
+const SONG_LENGTH = 150; // seconds
+const BPM = 150;
+const BEAT = 60 / BPM;
 
-function setStatus(t){ statusEl.textContent = t; }
+function midiToFreq(m){ return 440 * Math.pow(2,(m-69)/12); }
 
-function hashSeed(s){
-  let h=2166136261;
-  for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h,16777619); }
-  return Math.abs(h);
-}
-function rngFactory(seed){
-  return function(){ seed = (seed * 1664525 + 1013904223) >>> 0; return (seed & 0xffffffff) / 4294967296; };
-}
-function midiToFreq(m){ return 440 * Math.pow(2, (m - 69) / 12); }
-function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+function status(t){ document.getElementById("status").innerText = t; }
 
-function makeNoiseBuffer(ctx, seconds=1){
-  const len = Math.floor(seconds * ctx.sampleRate);
-  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-  const data = buf.getChannelData(0);
-  for(let i=0;i<len;i++) data[i] = Math.random()*2 - 1;
-  return buf;
+function startRecording(){
+  chunks = [];
+  dest = ctx.createMediaStreamDestination();
+  recorder = new MediaRecorder(dest.stream);
+  recorder.ondataavailable = e => chunks.push(e.data);
+  recorder.onstop = () => {
+    blob = new Blob(chunks,{type:"audio/wav"});
+    document.getElementById("dl").disabled = false;
+    document.getElementById("player").src = URL.createObjectURL(blob);
+  };
+  recorder.start();
 }
 
-function scheduleADSREnvelope(gainNode, start, dur, a=0.005, d=0.03, s=0.8, r=0.04, peak=1){
-  const g = gainNode.gain;
-  g.setValueAtTime(0, start);
-  g.linearRampToValueAtTime(peak, start + a);
-  g.linearRampToValueAtTime(peak * s, start + a + d);
-  g.setValueAtTime(peak * s, start + dur - r);
-  g.linearRampToValueAtTime(0.0001, start + dur);
+function stopRecording(){
+  recorder.stop();
 }
 
-// smaller waveshaper generator (less memory)
-function makeWaveshaper(ctx, k=200){
-  const n = 4096;
-  const curve = new Float32Array(n);
-  for(let i=0;i<n;i++){
-    const x = (i / (n-1)) * 2 - 1;
-    curve[i] = Math.tanh(x * k);
-  }
-  const sh = ctx.createWaveShaper();
-  sh.curve = curve;
-  sh.oversample = '2x';
-  return sh;
+function square(freq,time,dur,vol=0.3){
+  const o = ctx.createOscillator();
+  o.type="square";
+  o.frequency.value=freq;
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(vol,time);
+  g.gain.exponentialRampToValueAtTime(0.0001,time+dur);
+  o.connect(g);
+  g.connect(ctx.destination);
+  g.connect(dest);
+  o.start(time);
+  o.stop(time+dur);
 }
 
-async function renderSong(promptText){
-  setStatus('Preparing offline audio graph...');
-  const seed = hashSeed((promptText||'') + Date.now().toString());
-  const rand = rngFactory(seed);
+function noise(time,dur,vol=0.3){
+  const buffer = ctx.createBuffer(1,ctx.sampleRate*dur,ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i=0;i<data.length;i++) data[i]=Math.random()*2-1;
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  const g = ctx.createGain();
+  g.gain.value = vol;
+  src.connect(g);
+  g.connect(ctx.destination);
+  g.connect(dest);
+  src.start(time);
+}
 
-  // Create offline context for full render
-  let offlineCtx;
-  try {
-    offlineCtx = new OfflineAudioContext(2, SR * DURATION, SR);
-  } catch (e) {
-    setStatus('Error: browser may not support OfflineAudioContext with this length. Try a shorter duration or a modern browser.');
-    throw e;
-  }
+function generateSong(){
+  ctx = new AudioCtx();
+  startRecording();
+  status("Generating ZX Spectrum music...");
 
-  const master = offlineCtx.createGain();
-  master.gain.value = 0.95;
-  master.connect(offlineCtx.destination);
+  let t = ctx.currentTime + 0.2;
 
-  const noiseBuf = makeNoiseBuffer(offlineCtx, 1.0);
-
-  const bpm = 140 + Math.floor(rand()*30);
-  const beat = 60 / bpm;
-  const bar = beat * 4;
-  const baseRoot = 48 + Math.floor(rand()*12);
-
-  const progModes = [
-    [0,4,7,10],
-    [0,3,7,10],
-    [0,5,9,12],
-    [0,3,6,9]
-  ];
-  const progression = [
-    progModes[Math.floor(rand()*progModes.length)],
-    progModes[Math.floor(rand()*progModes.length)],
-    progModes[Math.floor(rand()*progModes.length)],
-    progModes[Math.floor(rand()*progModes.length)]
+  const key = 48 + Math.floor(Math.random()*8);
+  const chords = [
+    [0,4,7],
+    [0,3,7],
+    [2,5,9],
+    [0,5,7]
   ];
 
-  function scheduleChord(startTime, root, chordIntervals, dur){
-    for(let v=0; v<3; v++){
-      const osc = offlineCtx.createOscillator();
-      const g = offlineCtx.createGain();
-      osc.type = (v===0) ? 'sawtooth' : (v===1 ? 'square' : 'sawtooth');
-      osc.detune.value = (v-1)*8 + (rand()*6 - 3);
-      const noteIdx = chordIntervals[v % chordIntervals.length];
-      const midi = root + noteIdx + (v===2 ? 12 : 0);
-      osc.frequency.value = midiToFreq(midi);
-      const lp = offlineCtx.createBiquadFilter();
-      lp.type = 'lowpass';
-      lp.frequency.value = 2000 - v*400;
-      lp.Q.value = 0.8;
-      const sh = makeWaveshaper(offlineCtx, 120 + v*80);
-      osc.connect(lp);
-      lp.connect(sh);
-      sh.connect(g);
-      g.connect(master);
-      scheduleADSREnvelope(g, startTime, dur, 0.02, 0.2, 0.6, 0.3, 0.9 - v*0.18);
-      osc.start(startTime);
-      osc.stop(startTime + dur + 0.05);
-    }
-  }
+  const leadScale = [0,2,3,5,7,8,10,12];
 
-  function scheduleLead(noteMidi, startTime, dur){
-    const o1 = offlineCtx.createOscillator();
-    o1.type = 'square'; o1.frequency.value = midiToFreq(noteMidi);
-    o1.detune.value = -6 + (rand()*3 - 1.5);
-    const o2 = offlineCtx.createOscillator();
-    o2.type = 'sawtooth'; o2.frequency.value = midiToFreq(noteMidi + 12);
-    o2.detune.value = 10 + (rand()*5);
-    const sh = makeWaveshaper(offlineCtx, 360);
-    const g = offlineCtx.createGain();
-    g.gain.value = 0.9;
-    const hp = offlineCtx.createBiquadFilter();
-    hp.type = 'highpass'; hp.frequency.value = 120;
-    o1.connect(sh); o2.connect(sh);
-    sh.connect(g); g.connect(hp); hp.connect(master);
-    scheduleADSREnvelope(g, startTime, dur, 0.001, 0.02, 0.6, 0.02, 0.8);
-    o1.start(startTime); o2.start(startTime);
-    o1.stop(startTime + dur + 0.02); o2.stop(startTime + dur + 0.02);
-  }
+  const bars = Math.floor(SONG_LENGTH / (BEAT*4));
 
-  function scheduleArp(noteMidi, startTime, dur, rate = 12){
-    const notes = Math.max(2, Math.floor(dur * rate));
-    for(let i=0;i<notes;i++){
-      const t = startTime + (i / notes) * dur;
-      const pitchShift = ((i % 4) * 3) + (Math.floor(rand()*3)*12);
-      const osc = offlineCtx.createOscillator();
-      osc.type = 'square'; osc.frequency.value = midiToFreq(noteMidi + pitchShift);
-      const g = offlineCtx.createGain();
-      scheduleADSREnvelope(g, t, dur/notes * 0.95, 0.001, 0.01, 0.2, 0.01, 0.7);
-      osc.connect(g); g.connect(master);
-      osc.start(t); osc.stop(t + dur/notes + 0.005);
-    }
-  }
+  for(let bar=0; bar<bars; bar++){
+    const chord = chords[bar % chords.length];
+    const root = key + (bar%2)*2;
 
-  function scheduleKick(time){
-    const osc = offlineCtx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(110, time);
-    osc.frequency.exponentialRampToValueAtTime(45, time + 0.14);
-    const g = offlineCtx.createGain();
-    g.gain.setValueAtTime(1.0, time);
-    g.gain.exponentialRampToValueAtTime(0.001, time + 0.16);
-    const lp = offlineCtx.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = 900;
-    osc.connect(lp); lp.connect(g); g.connect(master);
-    osc.start(time); osc.stop(time + 0.18);
-  }
-  function scheduleSnare(time){
-    const src = offlineCtx.createBufferSource(); src.buffer = noiseBuf;
-    const g = offlineCtx.createGain(); g.gain.setValueAtTime(1.2, time);
-    g.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
-    const bp = offlineCtx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2000; bp.Q.value = 0.8;
-    src.connect(bp); bp.connect(g); g.connect(master);
-    const tone = offlineCtx.createOscillator(); tone.type = 'triangle'; tone.frequency.value = 180;
-    const tg = offlineCtx.createGain(); tg.gain.setValueAtTime(0.25, time); tg.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
-    tone.connect(tg); tg.connect(master);
-    src.start(time); src.stop(time + 0.18);
-    tone.start(time); tone.stop(time + 0.12);
-  }
-  function scheduleHat(time, open=false){
-    const src = offlineCtx.createBufferSource(); src.buffer = noiseBuf;
-    const g = offlineCtx.createGain(); g.gain.setValueAtTime(open ? 0.35 : 0.18, time);
-    g.gain.exponentialRampToValueAtTime(0.001, time + (open?0.25:0.06));
-    const hp = offlineCtx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 5000;
-    src.connect(hp); hp.connect(g); g.connect(master);
-    src.start(time); src.stop(time + (open?0.25:0.06));
-  }
-
-  // Arrange: intro 8 bars, main 32 bars, outro 8 bars
-  let t = 0.1;
-  for(let barIdx=0; barIdx<8; barIdx++){
-    const chordRoot = baseRoot + ((barIdx % 4) * 0);
-    const chord = progression[barIdx % progression.length];
-    scheduleChord(t, chordRoot, chord, bar);
-    scheduleArp(chordRoot + 12, t, bar, 12);
-    if(barIdx % 2 === 1) scheduleLead(chordRoot + 24, t + 0.04, bar*0.6);
-    t += bar;
-  }
-
-  const mainBars = 32;
-  for(let mb=0; mb<mainBars; mb++){
-    const barStart = t;
-    const chordRoot = baseRoot + (Math.floor(mb/8)*2);
-    const chord = progression[mb % progression.length];
-
-    scheduleChord(barStart, chordRoot, chord, bar);
-
-    const bassPattern = [0,0, -2, -3, 0, -4, -2, 0];
-    for(let i=0;i<4;i++){
-      const bt = barStart + i*(beat);
-      const bassNote = chordRoot + bassPattern[i % bassPattern.length];
-      const o = offlineCtx.createOscillator(); o.type='sawtooth'; o.frequency.value = midiToFreq(bassNote);
-      const g = offlineCtx.createGain(); g.gain.setValueAtTime(0.9, bt); g.gain.exponentialRampToValueAtTime(0.001, bt + beat*0.95);
-      const sh = offlineCtx.createWaveShaper();
-      sh.curve = new Float32Array([ -0.8, -0.2, 0.2, 0.8 ]);
-      o.connect(sh); sh.connect(g); g.connect(master);
-      o.start(bt); o.stop(bt + beat*0.98);
+    // Chord stabs
+    for(let i=0;i<chord.length;i++){
+      square(midiToFreq(root+chord[i]), t, BEAT*0.9, 0.12);
     }
 
-    scheduleKick(barStart + 0.0);
-    if(Math.random() < 0.55) scheduleKick(barStart + beat*2.5);
-    scheduleSnare(barStart + beat*1.0);
-    scheduleSnare(barStart + beat*3.0);
-    for(let h=0; h<8; h++){
-      const ht = barStart + h*(beat/2.0);
-      scheduleHat(ht, Math.random() < 0.08 && h%2===0);
+    // Bass
+    square(midiToFreq(root-12), t, BEAT*3.8, 0.25);
+
+    // Arpeggio (ZX style fast)
+    for(let i=0;i<16;i++){
+      const note = root + chord[i%chord.length] + 12;
+      square(midiToFreq(note), t + i*(BEAT/4), BEAT/4, 0.18);
     }
 
-    if(mb % 2 === 0) scheduleArp(chordRoot + 12, barStart + 0.0, beat*2, 18);
-    if(mb % 4 === 1) scheduleLead(chordRoot + 24 + (Math.floor(rand()*6)), barStart + beat*0.2, beat*3);
-    if(rand() > 0.85){
-      for(let f=0; f<6; f++){
-        scheduleLead(chordRoot + 28 + f, barStart + beat*(3.0) + f*(beat/8), beat/8);
+    // Lead melody
+    if(bar%2===0){
+      for(let i=0;i<4;i++){
+        const n = root + leadScale[Math.floor(Math.random()*leadScale.length)] + 12;
+        square(midiToFreq(n), t + i*BEAT, BEAT*0.9, 0.2);
       }
     }
-    t += bar;
+
+    // Drums
+    noise(t, 0.05, 0.4);
+    noise(t + BEAT*2, 0.05, 0.35);
+
+    t += BEAT*4;
   }
 
-  for(let ob=0; ob<8; ob++){
-    const chordRoot = baseRoot;
-    const chord = progression[ob % progression.length];
-    scheduleChord(t, chordRoot, chord, bar);
-    if(ob%2===0) scheduleArp(chordRoot+12, t, bar, 14);
-    t += bar;
-  }
-
-  // Now render
-  setStatus('Rendering audio in browser — this can take a while (CPU heavy).');
-  let rendered;
-  try {
-    rendered = await offlineCtx.startRendering();
-  } catch (err) {
-    setStatus('Rendering failed: ' + (err && err.message ? err.message : err));
-    throw err;
-  }
-
-  if(!rendered || typeof rendered.length === 'undefined' || rendered.length === 0){
-    setStatus('Rendering returned empty buffer — try again or use a different browser.');
-    throw new Error('Empty render result');
-  }
-
-  setStatus('Applying 8-bit quantization & encoding WAV...');
-
-  const frames = rendered.length;
-  const channels = rendered.numberOfChannels || 1;
-  const buffer = new ArrayBuffer(44 + frames * channels * 2);
-  const view = new DataView(buffer);
-
-  function writeString(view, offset, string) {
-    for (let i = 0; i < string.length; i++) view.setUint8(offset + i, string.charCodeAt(i));
-  }
-
-  writeString(view, 0, 'RIFF');
-  view.setUint32(4, 36 + frames * channels * 2, true);
-  writeString(view, 8, 'WAVE');
-  writeString(view, 12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, channels, true);
-  view.setUint32(24, SR, true);
-  view.setUint32(28, SR * channels * 2, true);
-  view.setUint16(32, channels * 2, true);
-  view.setUint16(34, 16, true);
-  writeString(view, 36, 'data');
-  view.setUint32(40, frames * channels * 2, true);
-
-  // interleave and write PCM
-  let offset = 44;
-  const ch0 = rendered.getChannelData(0);
-  const ch1 = channels > 1 ? rendered.getChannelData(1) : ch0;
-
-  for(let i=0;i<frames;i++){
-    // quantize to 8-bit-like then convert to 16-bit PCM
-    let sL = clamp(ch0[i], -1, 1); let sR = clamp(ch1[i], -1, 1);
-    sL = Math.tanh(sL * 1.0);
-    sR = Math.tanh(sR * 1.0);
-    const qL = Math.round(((sL + 1) / 2) * 255) / 255 * 2 - 1;
-    const qR = Math.round(((sR + 1) / 2) * 255) / 255 * 2 - 1;
-
-    // left
-    let val = qL < 0 ? qL * 0x8000 : qL * 0x7fff;
-    view.setInt16(offset, Math.floor(val), true);
-    offset += 2;
-    // right
-    val = qR < 0 ? qR * 0x8000 : qR * 0x7fff;
-    view.setInt16(offset, Math.floor(val), true);
-    offset += 2;
-  }
-
-  const blob = new Blob([view], { type: 'audio/wav' });
-  const url = URL.createObjectURL(blob);
-
-  setStatus('Done — playing and ready to download.');
-  player.src = url;
-  try { await player.play(); } catch(e){ /* autoplay blocked */ }
-  downloadBtn.disabled = false;
-  downloadBtn.onclick = () => {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'secret_chiptune_fixed.wav';
-    a.click();
-  };
+  setTimeout(()=>{
+    stopRecording();
+    status("Done.");
+  }, SONG_LENGTH*1000 + 500);
 }
 
-generateBtn.addEventListener('click', async () => {
-  generateBtn.disabled = true;
-  downloadBtn.disabled = true;
-  setStatus('Starting generation...');
-  try{
-    await renderSong(promptInput.value.trim());
-  }catch(e){
-    console.error(e);
-    if(!statusEl.textContent.startsWith('Error') && !statusEl.textContent.startsWith('Rendering failed')){
-      setStatus('Error during generation: ' + (e && e.message ? e.message : e));
-    }
-  } finally {
-    generateBtn.disabled = false;
-  }
-});
+document.getElementById("gen").onclick = generateSong;
+document.getElementById("dl").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "zx_spectrum_track.wav";
+  a.click();
+};
 </script>
 </body>
 </html>
