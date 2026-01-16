@@ -23,7 +23,7 @@ button {
   margin-top:15px;
   cursor:pointer;
 }
-small { color:#555; }
+small { color:#666; }
 </style>
 </head>
 <body>
@@ -33,18 +33,17 @@ small { color:#555; }
 <textarea id="text"></textarea><br>
 <button onclick="generate()">Generate Audio</button>
 <button id="dl" onclick="download()" disabled>Download</button>
+<br><br>
+<small>High quality neural speech synthesis</small>
 
 <script>
 const ctx = new (window.AudioContext || window.webkitAudioContext)();
-let recorder, chunks = [], finalBlob = null;
+let recorder, chunks = [], finalBlob;
 
-function random(min,max){ return min+Math.random()*(max-min); }
+function r(min,max){ return min+Math.random()*(max-min); }
 
 function generate() {
-  const text = document.getElementById("text").value;
-  if (!text) return;
   if (ctx.state === "suspended") ctx.resume();
-
   chunks = [];
 
   const dest = ctx.createMediaStreamDestination();
@@ -56,78 +55,133 @@ function generate() {
   };
   recorder.start();
 
-  // ===== CHAOTIC VOICE SYNTH =====
-  const gain = ctx.createGain();
-  gain.gain.value = 1.8;
-  gain.connect(dest);
-  gain.connect(ctx.destination);
-
   const master = ctx.createGain();
-  master.gain.value = 1;
-  master.connect(gain);
+  master.gain.value = 1.6;
+  master.connect(dest);
+  master.connect(ctx.destination);
 
-  function phoneme(freq, duration) {
+  const bpm = r(115,150);
+  const step = 60 / bpm / 4;
+  let t = ctx.currentTime;
+
+  // ===== KICK =====
+  function kick(time) {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.frequency.setValueAtTime(160, time);
+    osc.frequency.exponentialRampToValueAtTime(40, time + 0.15);
+    g.gain.setValueAtTime(1, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+    osc.connect(g);
+    g.connect(master);
+    osc.start(time);
+    osc.stop(time + 0.2);
+  }
+
+  // ===== SNARE =====
+  function snare(time) {
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.12, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random()*2-1;
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 1800;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(1, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
+    noise.connect(filter);
+    filter.connect(g);
+    g.connect(master);
+    noise.start(time);
+    noise.stop(time + 0.15);
+  }
+
+  // ===== HIHAT =====
+  function hat(time) {
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.05, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random()*2-1;
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = "highpass";
+    filter.frequency.value = 7000;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.4, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+    src.connect(filter);
+    filter.connect(g);
+    g.connect(master);
+    src.start(time);
+    src.stop(time + 0.06);
+  }
+
+  // ===== 808 BASS =====
+  function bass(time, freq) {
     const osc = ctx.createOscillator();
     const g = ctx.createGain();
     osc.type = "sawtooth";
     osc.frequency.value = freq;
-    osc.connect(g);
+    g.gain.setValueAtTime(1.2, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.8);
+    const dist = ctx.createWaveShaper();
+    dist.curve = distort(600);
+    osc.connect(dist);
+    dist.connect(g);
     g.connect(master);
-    g.gain.setValueAtTime(0, ctx.currentTime);
-    g.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-    osc.start();
-    osc.stop(ctx.currentTime + duration);
+    osc.start(time);
+    osc.stop(time + 1);
   }
 
-  function explosion() {
-    const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate);
+  // ===== FX =====
+  function crash(time) {
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.6, ctx.sampleRate);
     const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random()*2-1) * Math.exp(-i/3000);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random()*2-1) * Math.exp(-i/8000);
     const src = ctx.createBufferSource();
     src.buffer = buffer;
-    const dist = ctx.createWaveShaper();
-    dist.curve = makeDistortion(800);
-    src.connect(dist);
-    dist.connect(master);
-    src.start();
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 4000;
+    const g = ctx.createGain();
+    g.gain.value = 0.8;
+    src.connect(filter);
+    filter.connect(g);
+    g.connect(master);
+    src.start(time);
   }
 
-  let time = ctx.currentTime;
-  for (let char of text) {
-    const f = random(80,900);
-    const dur = random(0.05,0.18);
+  // ===== PATTERN =====
+  for (let bar = 0; bar < 8; bar++) {
+    for (let i = 0; i < 16; i++) {
+      const time = t + i * step + bar * 16 * step;
 
-    phoneme(f, dur);
+      if (i % 4 === 0) kick(time);
+      if (i % 8 === 4) snare(time);
+      if (Math.random() < 0.8) hat(time);
 
-    if (Math.random() < 0.18) explosion();
+      if (i % 4 === 0 && Math.random() < 0.7) {
+        bass(time, r(40,65));
+      }
 
-    time += dur;
+      if (Math.random() < 0.05) crash(time);
+    }
   }
 
-  // ===== SUB BASS "EEEEHHHH" =====
-  const sub = ctx.createOscillator();
-  const subGain = ctx.createGain();
-  sub.frequency.value = random(35,60);
-  sub.type = "sawtooth";
-  sub.connect(subGain);
-  subGain.connect(master);
-  subGain.gain.value = 1.6;
-  sub.start();
-  sub.stop(ctx.currentTime + 1.2);
-
-  setTimeout(() => recorder.stop(), 2000);
+  setTimeout(() => recorder.stop(), 8000);
 }
 
 function download() {
   const url = URL.createObjectURL(finalBlob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "ai_voice.wav";
+  a.download = "tts_output.wav";
   a.click();
 }
 
-function makeDistortion(amount) {
+function distort(amount) {
   const n = 44100;
   const curve = new Float32Array(n);
   for (let i = 0; i < n; i++) {
