@@ -1,29 +1,142 @@
-import random
-import numpy as np
-import soundfile as sf
-from pydub import AudioSegment, effects
-from tortoise.api import TextToSpeech
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Text to Speech Generator</title>
+<style>
+body {
+  background:#ffffff;
+  color:#111;
+  font-family: Arial, sans-serif;
+  text-align:center;
+  padding:40px;
+}
+textarea {
+  width:70%;
+  height:120px;
+  font-size:16px;
+  padding:10px;
+}
+button {
+  padding:12px 22px;
+  font-size:16px;
+  margin-top:15px;
+  cursor:pointer;
+}
+small { color:#555; }
+</style>
+</head>
+<body>
 
-tts = TextToSpeech()
+<h1>Text to Speech Generator</h1>
+<p>Enter your text below:</p>
+<textarea id="text"></textarea><br>
+<button onclick="generate()">Generate Audio</button>
+<button id="dl" onclick="download()" disabled>Download</button>
 
-text = input("Enter text: ")
+<script>
+const ctx = new (window.AudioContext || window.webkitAudioContext)();
+let recorder, chunks = [], finalBlob = null;
 
-voice = tts.tts(text)
-sf.write("raw.wav", voice.squeeze(), 24000)
+function random(min,max){ return min+Math.random()*(max-min); }
 
-audio = AudioSegment.from_wav("raw.wav")
+function generate() {
+  const text = document.getElementById("text").value;
+  if (!text) return;
+  if (ctx.state === "suspended") ctx.resume();
 
-def explode(seg):
-    noise = AudioSegment.generate_white_noise(duration=120).apply_gain(15)
-    return seg.overlay(noise)
+  chunks = [];
 
-for i in range(8):
-    audio = audio.low_pass_filter(random.randint(150,400))
-    audio = audio.high_pass_filter(random.randint(100,600))
-    audio = effects.speedup(audio, playback_speed=random.uniform(0.4,1.4))
-    audio = audio + random.randint(-6,12)
-    if random.random() < 0.4:
-        audio = explode(audio)
+  const dest = ctx.createMediaStreamDestination();
+  recorder = new MediaRecorder(dest.stream);
+  recorder.ondataavailable = e => chunks.push(e.data);
+  recorder.onstop = () => {
+    finalBlob = new Blob(chunks, { type: "audio/wav" });
+    document.getElementById("dl").disabled = false;
+  };
+  recorder.start();
 
-audio.export("FINAL_INSANE.wav", format="wav")
-print("Saved as FINAL_INSANE.wav")
+  // ===== CHAOTIC VOICE SYNTH =====
+  const gain = ctx.createGain();
+  gain.gain.value = 1.8;
+  gain.connect(dest);
+  gain.connect(ctx.destination);
+
+  const master = ctx.createGain();
+  master.gain.value = 1;
+  master.connect(gain);
+
+  function phoneme(freq, duration) {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = "sawtooth";
+    osc.frequency.value = freq;
+    osc.connect(g);
+    g.connect(master);
+    g.gain.setValueAtTime(0, ctx.currentTime);
+    g.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+  }
+
+  function explosion() {
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = (Math.random()*2-1) * Math.exp(-i/3000);
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const dist = ctx.createWaveShaper();
+    dist.curve = makeDistortion(800);
+    src.connect(dist);
+    dist.connect(master);
+    src.start();
+  }
+
+  let time = ctx.currentTime;
+  for (let char of text) {
+    const f = random(80,900);
+    const dur = random(0.05,0.18);
+
+    phoneme(f, dur);
+
+    if (Math.random() < 0.18) explosion();
+
+    time += dur;
+  }
+
+  // ===== SUB BASS "EEEEHHHH" =====
+  const sub = ctx.createOscillator();
+  const subGain = ctx.createGain();
+  sub.frequency.value = random(35,60);
+  sub.type = "sawtooth";
+  sub.connect(subGain);
+  subGain.connect(master);
+  subGain.gain.value = 1.6;
+  sub.start();
+  sub.stop(ctx.currentTime + 1.2);
+
+  setTimeout(() => recorder.stop(), 2000);
+}
+
+function download() {
+  const url = URL.createObjectURL(finalBlob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "ai_voice.wav";
+  a.click();
+}
+
+function makeDistortion(amount) {
+  const n = 44100;
+  const curve = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = i * 2 / n - 1;
+    curve[i] = Math.tanh(x * amount);
+  }
+  return curve;
+}
+</script>
+
+</body>
+</html>
