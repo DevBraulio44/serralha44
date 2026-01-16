@@ -5,7 +5,7 @@
 <title>Text to Speech Generator</title>
 <style>
 body {
-  background:#fff;
+  background:#ffffff;
   color:#111;
   font-family: Arial, sans-serif;
   text-align:center;
@@ -48,7 +48,6 @@ function hashSeed(str){
   }
   return Math.abs(h);
 }
-
 function rng(seed){
   return function(){
     seed ^= seed << 13;
@@ -75,16 +74,15 @@ function generate(){
   recorder.start();
 
   const master = ctx.createGain();
-  master.gain.value = 1.4;
+  master.gain.value = 1.3;
   master.connect(dest);
   master.connect(ctx.destination);
 
-  const bpm = 165 + rand()*40;
+  const bpm = 160 + rand()*40;
   const step = 60/bpm/4;
-  const start = ctx.currentTime + 0.05;
+  const start = ctx.currentTime + 0.1;
 
-  // ===== SYNTH ENGINES =====
-  function square(freq,time,dur,vol=0.5){
+  function square(freq,time,dur,vol=0.35){
     const o = ctx.createOscillator();
     const g = ctx.createGain();
     o.type="square";
@@ -92,7 +90,7 @@ function generate(){
     g.gain.setValueAtTime(vol,time);
     g.gain.exponentialRampToValueAtTime(0.001,time+dur);
     o.connect(g); g.connect(master);
-    o.start(time); o.stop(time+dur);
+    o.start(time); o.stop(time+dur+0.02);
   }
 
   function saw(freq,time,dur,vol=0.4){
@@ -105,10 +103,10 @@ function generate(){
     const dist = ctx.createWaveShaper();
     dist.curve = distort(500);
     o.connect(dist); dist.connect(g); g.connect(master);
-    o.start(time); o.stop(time+dur);
+    o.start(time); o.stop(time+dur+0.02);
   }
 
-  function noise(time,dur,vol=0.3){
+  function noise(time,dur,vol=0.25){
     const buffer = ctx.createBuffer(1, ctx.sampleRate*dur, ctx.sampleRate);
     const d = buffer.getChannelData(0);
     for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
@@ -125,19 +123,18 @@ function generate(){
   function kick(time){
     const o = ctx.createOscillator();
     const g = ctx.createGain();
-    o.frequency.setValueAtTime(140,time);
-    o.frequency.exponentialRampToValueAtTime(35,time+0.15);
+    o.frequency.setValueAtTime(150,time);
+    o.frequency.exponentialRampToValueAtTime(40,time+0.18);
     g.gain.setValueAtTime(1,time);
-    g.gain.exponentialRampToValueAtTime(0.001,time+0.15);
+    g.gain.exponentialRampToValueAtTime(0.001,time+0.18);
     o.connect(g); g.connect(master);
-    o.start(time); o.stop(time+0.2);
+    o.start(time); o.stop(time+0.22);
   }
 
-  // ===== TIM FOLLIN STYLE SCALES =====
   const scales = [
-    [0,2,3,5,7,8,11], // phrygian-ish
-    [0,1,4,5,7,8,10], // exotic minor
-    [0,3,5,6,7,10] // dark diminished vibe
+    [0,2,3,5,7,8,11],
+    [0,1,4,5,7,8,10],
+    [0,3,5,6,7,10]
   ];
   const scale = scales[Math.floor(rand()*scales.length)];
 
@@ -145,7 +142,6 @@ function generate(){
     return 440 * Math.pow(2,(note-69)/12);
   }
 
-  // ===== COMPOSITION =====
   let time = start;
   let root = 36 + Math.floor(rand()*12);
 
@@ -155,24 +151,20 @@ function generate(){
     for(let i=0;i<16;i++){
       const t = time + i*step;
 
-      // DRUMS
       if(i%4===0) kick(t);
       if(i%8===4) noise(t,0.1,0.4);
-      if(rand()>0.4) noise(t,0.04,0.15);
+      if(rand()>0.5) noise(t,0.04,0.15);
 
-      // BASS
       const bassNote = root + scale[Math.floor(rand()*scale.length)];
       saw(noteFreq(bassNote), t, step*2, 0.45);
 
-      // INSANE LEAD ARPEGGIOS
-      for(let k=0;k<3;k++){
-        const arpNote = root+12+scale[Math.floor(rand()*scale.length)];
-        square(noteFreq(arpNote+Math.floor(rand()*12)), t+k*step/3, step/2, 0.35);
+      for(let k=0;k<4;k++){
+        const arp = root+12+scale[Math.floor(rand()*scale.length)];
+        square(noteFreq(arp+Math.floor(rand()*12)), t+k*step/4, step/3, 0.3);
       }
 
-      // RANDOM MODULATION BURSTS
-      if(rand()>0.85){
-        for(let j=0;j<6;j++){
+      if(rand()>0.88){
+        for(let j=0;j<8;j++){
           square(noteFreq(root+24+Math.floor(rand()*24)), t+j*step/8, step/6, 0.2);
         }
       }
@@ -180,7 +172,7 @@ function generate(){
     time += 16*step;
   }
 
-  setTimeout(()=>recorder.stop(), 16000);
+  setTimeout(()=>recorder.stop(), 17000);
 }
 
 function download(){
