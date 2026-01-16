@@ -1,104 +1,154 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Voz IA Maluca</title>
-  <style>
-    body {
-      background: #0a0a0a;
-      color: #00ffcc;
-      font-family: monospace;
-      text-align: center;
-      padding: 40px;
-    }
-    textarea {
-      width: 80%;
-      height: 120px;
-      background: black;
-      color: #00ffcc;
-      border: 2px solid #00ffcc;
-      padding: 10px;
-      font-size: 16px;
-    }
-    button {
-      margin-top: 15px;
-      padding: 12px 25px;
-      font-size: 18px;
-      background: #00ffcc;
-      color: black;
-      border: none;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #00ffaa;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>IA VOZ INSANA</title>
+<style>
+body {
+  background:#050505;
+  color:#0f0;
+  font-family: monospace;
+  text-align:center;
+  padding:40px;
+}
+textarea {
+  width:80%;
+  height:130px;
+  background:black;
+  color:#0f0;
+  border:2px solid #0f0;
+  padding:10px;
+  font-size:16px;
+}
+button {
+  margin-top:20px;
+  padding:14px 28px;
+  font-size:18px;
+  background:#0f0;
+  color:black;
+  border:none;
+  cursor:pointer;
+}
+button:hover { background:#0c0; }
+</style>
 </head>
 <body>
 
-  <h1>🤖 Voz IA Maluca</h1>
-  <p>Digite qualquer coisa:</p>
-  <textarea id="text"></textarea><br>
-  <button onclick="speak()">GERAR VOZ INSANA</button>
+<h1>👁️‍🗨️ IA VOZ INSANA</h1>
+<p>Digite qualquer coisa:</p>
+<textarea id="text"></textarea><br>
+<button onclick="go()">GERAR VOZ MUTANTE</button>
 
-  <script>
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+<script>
+const ctx = new (window.AudioContext || window.webkitAudioContext)();
+let glitchInterval;
 
-    function speak() {
-      const text = document.getElementById("text").value;
-      if (!text) return;
+function go() {
+  const text = document.getElementById("text").value;
+  if (!text) return;
 
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = "pt-BR";
-      utterance.pitch = Math.random() * 2;
-      utterance.rate = 0.7 + Math.random() * 0.8;
+  if (ctx.state === "suspended") ctx.resume();
 
-      const destination = audioCtx.createMediaStreamDestination();
-      const synth = window.speechSynthesis;
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = "pt-BR";
+  utter.rate = 0.6 + Math.random() * 0.8;
+  utter.pitch = 0.1 + Math.random() * 2;
 
-      const source = audioCtx.createMediaStreamSource(destination.stream);
+  const dest = ctx.createMediaStreamDestination();
+  const src = ctx.createMediaStreamSource(dest.stream);
 
-      const distortion = audioCtx.createWaveShaper();
-      distortion.curve = makeDistortionCurve(600);
-      distortion.oversample = "4x";
+  // ===== INSANE EFFECT CHAIN =====
+  const distortion = ctx.createWaveShaper();
+  distortion.curve = makeDistortionCurve(1200);
+  distortion.oversample = "4x";
 
-      const delay = audioCtx.createDelay();
-      delay.delayTime.value = 0.15 + Math.random() * 0.25;
+  const delay = ctx.createDelay();
+  delay.delayTime.value = 0.03 + Math.random() * 0.2;
 
-      const feedback = audioCtx.createGain();
-      feedback.gain.value = 0.4;
+  const feedback = ctx.createGain();
+  feedback.gain.value = 0.7;
 
-      delay.connect(feedback);
-      feedback.connect(delay);
+  const tremolo = ctx.createGain();
+  const tremoloOsc = ctx.createOscillator();
+  tremoloOsc.frequency.value = 12 + Math.random() * 25;
+  tremoloOsc.connect(tremolo.gain);
+  tremoloOsc.start();
 
-      const pitch = audioCtx.createBiquadFilter();
-      pitch.type = "bandpass";
-      pitch.frequency.value = 700 + Math.random() * 1200;
+  const ring = ctx.createGain();
+  const ringOsc = ctx.createOscillator();
+  ringOsc.frequency.value = 100 + Math.random() * 800;
+  ringOsc.connect(ring.gain);
+  ringOsc.start();
 
-      const gain = audioCtx.createGain();
-      gain.gain.value = 1.4;
+  const bitcrusher = createBitCrusher(ctx, 6 + Math.random() * 4);
 
-      source.connect(distortion);
-      distortion.connect(pitch);
-      pitch.connect(delay);
-      delay.connect(gain);
-      gain.connect(audioCtx.destination);
+  const radioEQ = ctx.createBiquadFilter();
+  radioEQ.type = "bandpass";
+  radioEQ.frequency.value = 1200 + Math.random() * 2000;
+  radioEQ.Q.value = 8;
 
-      synth.speak(utterance);
-    }
+  const gain = ctx.createGain();
+  gain.gain.value = 1.6;
 
-    function makeDistortionCurve(amount) {
-      const k = typeof amount === "number" ? amount : 50;
-      const n_samples = 44100;
-      const curve = new Float32Array(n_samples);
-      const deg = Math.PI / 180;
-      for (let i = 0; i < n_samples; ++i) {
-        const x = i * 2 / n_samples - 1;
-        curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+  delay.connect(feedback);
+  feedback.connect(delay);
+
+  src.connect(distortion);
+  distortion.connect(bitcrusher);
+  bitcrusher.connect(radioEQ);
+  radioEQ.connect(ring);
+  ring.connect(tremolo);
+  tremolo.connect(delay);
+  delay.connect(gain);
+  gain.connect(ctx.destination);
+
+  // === GLITCH STUTTER ===
+  clearInterval(glitchInterval);
+  glitchInterval = setInterval(() => {
+    distortion.curve = makeDistortionCurve(200 + Math.random() * 1600);
+    delay.delayTime.value = Math.random() * 0.25;
+    tremoloOsc.frequency.value = 5 + Math.random() * 40;
+    ringOsc.frequency.value = 80 + Math.random() * 1200;
+    radioEQ.frequency.value = 400 + Math.random() * 4000;
+    gain.gain.value = 0.6 + Math.random() * 2;
+  }, 120);
+
+  utter.onend = () => clearInterval(glitchInterval);
+
+  speechSynthesis.speak(utter);
+}
+
+function makeDistortionCurve(amount) {
+  const k = amount;
+  const n = 44100;
+  const curve = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = i * 2 / n - 1;
+    curve[i] = Math.tanh(x * k);
+  }
+  return curve;
+}
+
+function createBitCrusher(ctx, bits) {
+  const node = ctx.createScriptProcessor(4096, 1, 1);
+  let phaser = 0;
+  let last = 0;
+  const step = Math.pow(0.5, bits);
+  node.onaudioprocess = e => {
+    const input = e.inputBuffer.getChannelData(0);
+    const output = e.outputBuffer.getChannelData(0);
+    for (let i = 0; i < input.length; i++) {
+      phaser += step;
+      if (phaser >= 1.0) {
+        phaser -= 1.0;
+        last = step * Math.floor(input[i] / step + 0.5);
       }
-      return curve;
+      output[i] = last;
     }
-  </script>
+  };
+  return node;
+}
+</script>
 
 </body>
 </html>
