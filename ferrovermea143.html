@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FerroVermea143</title>
+<title>ferrovermea143</title>
 <style>
   html, body {
     margin: 0;
@@ -43,12 +43,14 @@
     opacity: 0;
     transition: opacity 2s ease;
     pointer-events: none;
+    cursor: pointer;
+    z-index: 20;
   }
 </style>
 </head>
 <body>
-  <img id="xrayTrigger" src="xray.png" alt="Xray Trigger">
-  <img id="doorgate" src="doorgate.png" alt="Doorgate">
+  <img id="xrayTrigger" src="xray.png">
+  <img id="doorgate" src="doorgate.png">
 
   <audio id="hitSound" src="hit.ogg"></audio>
 
@@ -59,7 +61,7 @@
     const body = document.body;
 
     let clones = [];
-    let maxHits = 55; // quantidade de clones para “vencer”
+    let maxHits = 55;
     let hits = 0;
     let spawning = false;
     let spawnInterval;
@@ -81,7 +83,6 @@
       clone.style.left = x + 'px';
       clone.style.top = y + 'px';
 
-      // animação de pulo simples
       let dy = Math.random() * 4 + 2;
       let direction = 1;
       setInterval(() => {
@@ -95,10 +96,12 @@
         hitSound.play();
         clone.remove();
         hits++;
+
         if (hits >= maxHits) {
           clearInterval(spawnInterval);
           clones.forEach(c => c.remove());
           doorgate.style.opacity = 1;
+          doorgate.style.pointerEvents = "auto";
         }
       });
 
@@ -109,8 +112,13 @@
     xrayTrigger.addEventListener('click', () => {
       if (!spawning) {
         spawning = true;
-        spawnInterval = setInterval(spawnXray, 200); // cria clones mais rápido
+        spawnInterval = setInterval(spawnXray, 200);
       }
+    });
+
+    // 👉 vai pra outro HTML local
+    doorgate.addEventListener('click', () => {
+      window.location.href = "final.html";
     });
   </script>
 </body>
